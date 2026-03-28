@@ -9,7 +9,7 @@ namespace TimetablePlanner.Core.Models
 {
     public class Schedule
     {
-        public List<ILesson> Lessons { get; set; }
+        public List<ILesson> Lessons { get; set; } = new List<ILesson>();
 
         public Schedule() { }
 

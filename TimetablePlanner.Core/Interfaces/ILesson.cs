@@ -10,6 +10,8 @@ namespace TimetablePlanner.Core.Interfaces
     {
         int Id { get; set; }
         ISubject Subject { get; set; }
+
+        ITeacher Teacher { get; set; }
         IClassGroup ClassGroup { get; set; }
         IRoom Room { get; set; }
         ITimeSlot AssignedTimeSlot { get; set; }

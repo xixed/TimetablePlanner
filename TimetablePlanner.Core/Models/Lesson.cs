@@ -11,6 +11,8 @@ namespace TimetablePlanner.Core.Models
     {
         public int Id { get ; set; }
         public ISubject Subject { get; set ; }
+
+        public ITeacher Teacher { get ; set ; }
         public IClassGroup ClassGroup { get ; set ; }
         public IRoom Room { get ; set ; }
         public ITimeSlot? AssignedTimeSlot { get ; set ; }
@@ -18,12 +20,13 @@ namespace TimetablePlanner.Core.Models
 
 
         // Constructor for Lesson with all properties
-        public Lesson(ISubject subject, IClassGroup classGroup, IRoom room, List<ITimeSlot> possibleTimeSlots)
+        public Lesson(ISubject subject, ITeacher teacher, IClassGroup classGroup, IRoom room, List<ITimeSlot> possibleTimeSlots)
         {
             this.Subject = subject;
             this.ClassGroup = classGroup;
             this.Room = room;
             this.PossibleTimeSlots = possibleTimeSlots;
+            this.Teacher = teacher;
         }
     }
 }
