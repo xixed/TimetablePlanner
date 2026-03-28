@@ -12,7 +12,7 @@ namespace TimetablePlanner.Core.Interfaces
         ISubject Subject { get; set; }
         IClassGroup ClassGroup { get; set; }
         IRoom Room { get; set; }
-        ITimeSlot AddignedTimeSlot { get; set; }
+        ITimeSlot AssignedTimeSlot { get; set; }
         List<ITimeSlot> PossibleTimeSlots { get; set; }
 
     }

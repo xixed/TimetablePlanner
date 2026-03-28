@@ -9,7 +9,17 @@ namespace TimetablePlanner.Core.Models
 {
     public class TeacherType : ITeacherType
     {
-        public int RequiredWeeklyHours { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int MaxWeeklyHours { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int RequiredWeeklyHours { get; set; }
+        public int MaxWeeklyHours { get; set; }
+
+        // Constructor for TeacherType with all properties
+        public TeacherType(int requiredWeeklyHours, int maxWeeklyHours)
+        {
+            this.RequiredWeeklyHours = requiredWeeklyHours;
+            this.MaxWeeklyHours = maxWeeklyHours;
+        }
+
+        // Parameterless constructor for TeacherType
+        public TeacherType() { }
     }
 }

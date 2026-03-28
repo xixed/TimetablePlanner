@@ -9,9 +9,31 @@ namespace TimetablePlanner.Core.Models
 {
     public class Room : IRoom
     {
-        public int Id { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public string Name { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int Capacity { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public List<ISubject> Subjects { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int Id { get; set ; }
+        public string Name { get ; set ; }
+        public int Capacity { get ; set ; }
+        public List<ISubject> Subjects { get ; set ; }
+
+        // Constructor for Room with all properties
+        public Room(string name, int capacity, List<ISubject> subjects)
+        {
+            this.Name = name;
+            this.Capacity = capacity;
+            this.Subjects = subjects;
+        }
+
+        //befejezetlen, minden tantárgy hozzáadása ami csak van
+        public void AddAllSubjects() { }
+
+        public void AddSubject(ISubject subject)
+        {
+            this.Subjects.Add(subject);
+        }
+
+        public void RemoveSubject(ISubject subject)
+        {
+            this.Subjects.Remove(subject);
+        }
+
     }
 }

@@ -9,7 +9,17 @@ namespace TimetablePlanner.Core.Models
 {
     public class TimeSlot : ITimeSlot
     {
-        public int Day { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int Period { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int Day { get; set; }
+        public int Period { get; set; }
+
+        // Constructor for TimeSlot with all properties
+        public TimeSlot(int day, int period)
+        {
+            this.Day = day;
+            this.Period = period;
+        }
+
+        // Parameterless constructor for TimeSlot
+        public TimeSlot() { }
     }
 }

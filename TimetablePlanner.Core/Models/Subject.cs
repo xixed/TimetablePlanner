@@ -9,8 +9,18 @@ namespace TimetablePlanner.Core.Models
 {
     public class Subject : ISubject
     {
-        public int Id { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public string Name { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int WeekylHours { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int Id { get; set; }
+        public string Name { get ; set ; }
+        public int WeekylHours { get; set; }
+
+        // Constructor for Subject with all properties
+        public Subject(string name, int weeklyHours)
+        {
+            this.Name = name;
+            this.WeekylHours = weeklyHours;
+        }
+
+        // Parameterless constructor for Subject
+        public Subject() { }
     }
 }

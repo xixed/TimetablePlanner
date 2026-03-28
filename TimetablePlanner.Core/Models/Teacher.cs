@@ -9,10 +9,25 @@ namespace TimetablePlanner.Core.Models
 {
     public class Teacher : ITeacher
     {
-        public int Id { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public string Name { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public List<ISubject> Subjects { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public ITeacherType TeacherType { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public List<ITimeSlot> UnavailableTimeSlots { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int Id { get; set; }
+        public string Name { get ; set ; }
+        public List<ISubject> Subjects { get ; set ; }
+        public ITeacherType TeacherType { get ; set ; }
+        public List<ITimeSlot> UnavailableTimeSlots { get ; set ; }
+
+        // Constructor for Teacher with all properties
+        public Teacher(string name, List<ISubject> subjects, ITeacherType teacherType, List<ITimeSlot> unavailableTimeSlots)
+        {
+            this.Name = name;
+            this.Subjects = subjects;
+            this.TeacherType = teacherType;
+            this.UnavailableTimeSlots = unavailableTimeSlots;
+        }
+        
+        // Parameterless constructor for Teacher
+        public Teacher() { }
+
+
+
     }
 }

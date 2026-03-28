@@ -15,12 +15,12 @@ namespace TimetablePlanner.Core.Models
 
         public void AddLesson(ILesson lesson)
         {
-            
+            this.Lessons.Add(lesson);
         }
 
         public void RemoveLesson(ILesson lesson)
         {
-
+            this.Lessons.Remove(lesson);
         }
     }
 }
