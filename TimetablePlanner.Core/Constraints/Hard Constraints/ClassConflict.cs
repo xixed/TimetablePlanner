@@ -10,7 +10,7 @@ namespace TimetablePlanner.Core.Constraints.Hard_Constraints
 {
     public class ClassConflict : IConstraint
     {
-        public string Name => "Learner group conflict constraint";
+        public string Name => "Class group conflict";
 
         public bool IsSatisfied(Schedule schedule, ILesson lesson)
         {
@@ -21,7 +21,7 @@ namespace TimetablePlanner.Core.Constraints.Hard_Constraints
 
             foreach (var existingLesson in schedule.Lessons)
             {
-                if (existingLesson.Id == lesson.Id)
+                if (existingLesson.ClassGroup.Id != lesson.ClassGroup.Id)
                 {
                     continue;
                 }
@@ -60,4 +60,5 @@ namespace TimetablePlanner.Core.Constraints.Hard_Constraints
 
             return true;
         }
+    }
 }

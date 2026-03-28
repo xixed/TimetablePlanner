@@ -1,13 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36518.9 d17.14
+VisualStudioVersion = 17.14.36518.9
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimetablePlanner.UI", "TimetablePlanner.UI\TimetablePlanner.UI.csproj", "{34E709AB-1633-42B7-ADB1-656502291925}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimetablePlanner.Core", "TimetablePlanner.Core\TimetablePlanner.Core.csproj", "{F5FC2C1A-3E5A-4A4D-8B13-F1D08D5F2F13}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimetablePlanner.Data", "TimetablePlanner.Data\TimetablePlanner.Data.csproj", "{9BD24495-143A-422B-92D0-26D5C2C15AC5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimetablePlanner.UI", "TimetablePlanner.UI\TimetablePlanner.UI.csproj", "{0941FB78-C30A-09FD-3076-89DB992F2367}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,10 +15,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{34E709AB-1633-42B7-ADB1-656502291925}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{34E709AB-1633-42B7-ADB1-656502291925}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{34E709AB-1633-42B7-ADB1-656502291925}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{34E709AB-1633-42B7-ADB1-656502291925}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F5FC2C1A-3E5A-4A4D-8B13-F1D08D5F2F13}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F5FC2C1A-3E5A-4A4D-8B13-F1D08D5F2F13}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F5FC2C1A-3E5A-4A4D-8B13-F1D08D5F2F13}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -27,6 +23,10 @@ Global
 		{9BD24495-143A-422B-92D0-26D5C2C15AC5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9BD24495-143A-422B-92D0-26D5C2C15AC5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9BD24495-143A-422B-92D0-26D5C2C15AC5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0941FB78-C30A-09FD-3076-89DB992F2367}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0941FB78-C30A-09FD-3076-89DB992F2367}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0941FB78-C30A-09FD-3076-89DB992F2367}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0941FB78-C30A-09FD-3076-89DB992F2367}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

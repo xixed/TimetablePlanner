@@ -11,13 +11,13 @@ namespace TimetablePlanner.Core.Models
     {
         public int Id { get; set; }
         public string Name { get ; set ; }
-        public int WeekylHours { get; set; }
+        
 
         // Constructor for Subject with all properties
-        public Subject(string name, int weeklyHours)
+        public Subject(string name)
         {
             this.Name = name;
-            this.WeekylHours = weeklyHours;
+            
         }
 
         // Parameterless constructor for Subject

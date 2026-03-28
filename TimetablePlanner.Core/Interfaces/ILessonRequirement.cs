@@ -6,17 +6,14 @@ using System.Threading.Tasks;
 
 namespace TimetablePlanner.Core.Interfaces
 {
-    public interface ILesson
+    public interface ILessonRequirement
     {
         int Id { get; set; }
         ISubject Subject { get; set; }
         ITeacher Teacher { get; set; }
         IClassGroup ClassGroup { get; set; }
-        IRoom? AssignedRoom { get; set; }
-        ITimeSlot AssignedTimeSlot { get; set; }
-
-        ILessonRequirement Requirement { get; set; }
-
-
+        List<ITimeSlot> PossibleTimeSlots { get; set; }
+        int WeeklyHours { get; set; }
+        List<IRoom> SuitableRooms { get; set; }
     }
 }

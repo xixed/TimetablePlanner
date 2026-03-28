@@ -10,7 +10,7 @@ namespace TimetablePlanner.Core.Interfaces
     {
         int Id { get; set; }
         string Name { get; set; }
-        int WeekylHours { get; set; }
+        
 
     }
 }

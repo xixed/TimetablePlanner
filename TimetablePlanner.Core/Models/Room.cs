@@ -22,6 +22,10 @@ namespace TimetablePlanner.Core.Models
             this.Subjects = subjects;
         }
 
+        // Parameterless constructor for Teacher
+        public Room() { }
+
+
         //befejezetlen, minden tantárgy hozzáadása ami csak van
         public void AddAllSubjects() { }
 

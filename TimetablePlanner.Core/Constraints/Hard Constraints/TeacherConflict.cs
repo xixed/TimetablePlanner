@@ -10,7 +10,7 @@ namespace TimetablePlanner.Core.Constraints.Hard_Constraints
 {
     public class TeacherConflict : IConstraint
     {
-        public string Name => "Teacher conflict constraint";
+        public string Name => "Teacher conflict";
 
         public bool IsSatisfied(Schedule schedule, ILesson lesson)
         {
@@ -21,7 +21,7 @@ namespace TimetablePlanner.Core.Constraints.Hard_Constraints
 
             foreach (var existingLesson in schedule.Lessons)
             {
-                if (existingLesson.Id == lesson.Id)
+                if (existingLesson.Teacher.Id != lesson.Teacher.Id)
                 {
                     continue;
                 }
@@ -31,11 +31,11 @@ namespace TimetablePlanner.Core.Constraints.Hard_Constraints
                     continue;
                 }
 
-                bool sameTeacher = existingLesson.Teacher.Id == lesson.Teacher.Id;
-                bool sameDay = existingLesson.AssignedTimeSlot.Day == lesson.AssignedTimeSlot.Day;
-                bool samePeriod = existingLesson.AssignedTimeSlot.Period == lesson.AssignedTimeSlot.Period;
-
-                if (sameTeacher && sameDay && samePeriod)
+                bool sameTime = 
+                    existingLesson.AssignedTimeSlot.Day == lesson.AssignedTimeSlot.Day &&
+                    existingLesson.AssignedTimeSlot.Period == lesson.AssignedTimeSlot.Period;
+                
+                if (sameTime)
                 {
                     return false;
                 }

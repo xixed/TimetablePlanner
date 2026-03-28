@@ -14,19 +14,19 @@ namespace TimetablePlanner.Core.Models
 
         public ITeacher Teacher { get ; set ; }
         public IClassGroup ClassGroup { get ; set ; }
-        public IRoom Room { get ; set ; }
+        public IRoom? AssignedRoom { get ; set ; }
         public ITimeSlot? AssignedTimeSlot { get ; set ; }
-        public List<ITimeSlot> PossibleTimeSlots { get ; set ; }
-
+        public ILessonRequirement Requirement { get ; set; }
 
         // Constructor for Lesson with all properties
-        public Lesson(ISubject subject, ITeacher teacher, IClassGroup classGroup, IRoom room, List<ITimeSlot> possibleTimeSlots)
+        public Lesson(ISubject subject, ITeacher teacher, IClassGroup classGroup)
         {
             this.Subject = subject;
             this.ClassGroup = classGroup;
-            this.Room = room;
-            this.PossibleTimeSlots = possibleTimeSlots;
             this.Teacher = teacher;
         }
+
+        // Parameterless constructor for Teacher
+        public Lesson() { }
     }
 }

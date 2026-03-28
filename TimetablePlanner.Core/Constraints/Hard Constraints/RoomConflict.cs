@@ -10,38 +10,31 @@ namespace TimetablePlanner.Core.Constraints.Hard_Constraints
 {
     public class RoomConflict : IConstraint
     {
-        public string Name => "Room conflict constraint";
+        public string Name => "Room conflict";
 
         public bool IsSatisfied(Schedule schedule, ILesson lesson)
         {
-            if (lesson.AssignedTimeSlot == null)
-            {
+            if (lesson.AssignedTimeSlot == null || lesson.AssignedRoom == null)
                 return true;
-            }
 
-            foreach (var existingLesson in schedule.Lessons)
+            foreach (var existing in schedule.Lessons)
             {
-                if (existingLesson.Id == lesson.Id)
-                {
+                if (existing.AssignedTimeSlot == null || existing.AssignedRoom == null)
                     continue;
-                }
 
-                if (existingLesson.AssignedTimeSlot == null)
-                {
-                    continue;
-                }
+                bool sameTime =
+                    existing.AssignedTimeSlot.Day == lesson.AssignedTimeSlot.Day &&
+                    existing.AssignedTimeSlot.Period == lesson.AssignedTimeSlot.Period;
 
-                bool sameRoom = existingLesson.Room.Id == lesson.Room.Id;
-                bool sameDay = existingLesson.AssignedTimeSlot.Day == lesson.AssignedTimeSlot.Day;
-                bool samePeriod = existingLesson.AssignedTimeSlot.Period == lesson.AssignedTimeSlot.Period;
+                bool sameRoom =
+                    existing.AssignedRoom.Id == lesson.AssignedRoom.Id;
 
-                if (sameRoom && sameDay && samePeriod)
-                {
+                if (sameTime && sameRoom)
                     return false;
-                }
             }
 
             return true;
+
         }
     }
 }
