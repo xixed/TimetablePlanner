@@ -11,9 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Constraints\" />
     <Folder Include="Models\" />
-    <Folder Include="Generators\" />
     <Folder Include="Services\" />
   </ItemGroup>
 
