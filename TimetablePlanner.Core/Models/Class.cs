@@ -7,16 +7,16 @@ using TimetablePlanner.Core.Interfaces;
 
 namespace TimetablePlanner.Core.Models
 {
-    public class Class : IClassGroup
+    public class Class : ClassGroup
     {
         public int Id { get; set; }
         public string Name { get ; set; }
         public int Size { get; set; }
-        public List<ISubject> Subjects { get; set;} = new List<ISubject>();
+        public List<Subject> Subjects { get; set;} = new List<Subject>();
 
 
         // Constructor for Class with all properties
-        public Class(string name, int size, List<ISubject> subjects) 
+        public Class(string name, int size, List<Subject> subjects) 
         {
             this.Name = name;
             this.Size = size;
@@ -34,12 +34,12 @@ namespace TimetablePlanner.Core.Models
         public Class() { }
 
 
-        public void AddSubject(ISubject subject)
+        public void AddSubject(Subject subject)
         {
             this.Subjects.Add(subject);
         }
 
-        public void RemoveSubject(ISubject subject)
+        public void RemoveSubject(Subject subject)
         {
             this.Subjects.Remove(subject);
         }

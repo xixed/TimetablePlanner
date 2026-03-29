@@ -7,7 +7,7 @@ using TimetablePlanner.Core.Interfaces;
 
 namespace TimetablePlanner.Core.Models
 {
-    public class Subject : ISubject
+    public class Subject
     {
         public int Id { get; set; }
         public string Name { get ; set ; }

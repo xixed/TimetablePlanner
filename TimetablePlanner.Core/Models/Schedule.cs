@@ -9,16 +9,16 @@ namespace TimetablePlanner.Core.Models
 {
     public class Schedule
     {
-        public List<ILesson> Lessons { get; set; } = new List<ILesson>();
+        public List<Lesson> Lessons { get; set; } = new List<Lesson>();
 
         public Schedule() { }
 
-        public void AddLesson(ILesson lesson)
+        public void AddLesson(Lesson lesson)
         {
             this.Lessons.Add(lesson);
         }
 
-        public void RemoveLesson(ILesson lesson)
+        public void RemoveLesson(Lesson lesson)
         {
             this.Lessons.Remove(lesson);
         }

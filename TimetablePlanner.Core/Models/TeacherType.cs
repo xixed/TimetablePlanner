@@ -9,6 +9,7 @@ namespace TimetablePlanner.Core.Models
 {
     public class TeacherType : ITeacherType
     {
+        public int Id { get; set; }
         public int RequiredWeeklyHours { get; set; }
         public int MaxWeeklyHours { get; set; }
 

@@ -9,13 +9,13 @@ namespace TimetablePlanner.Core.Models
 {
     public class School : ISchool
     {
-        public List<IRoom> Rooms { get; set ; }
+        public List<Room> Rooms { get; set ; }
         public List<IClassGroup> ClassGroups { get; set ; }
-        public List<ISubject> Subjects { get ; set ; }
-        public List<ITeacher> Teachers { get; set; }
+        public List<Subject> Subjects { get ; set ; }
+        public List<Teacher> Teachers { get; set; }
 
         // Constructor for School with all properties
-        public School(List<IRoom> rooms, List<IClassGroup> classGroups, List<ISubject> subjects, List<ITeacher> teachers)
+        public School(List<Room> rooms, List<IClassGroup> classGroups, List<Subject> subjects, List<Teacher> teachers)
         {
             this.Rooms = rooms;
             this.ClassGroups = classGroups;

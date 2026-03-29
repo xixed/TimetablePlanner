@@ -8,6 +8,7 @@ namespace TimetablePlanner.Core.Interfaces
 {
     public interface ITeacherType
     {
+        public int Id { get; set; }
         int RequiredWeeklyHours { get; set; }
         int MaxWeeklyHours { get; set; }
     }

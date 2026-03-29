@@ -12,7 +12,7 @@ namespace TimetablePlanner.Core.Constraints.Hard_Constraints
     {
         public string Name => "Teacher conflict";
 
-        public bool IsSatisfied(Schedule schedule, ILesson lesson)
+        public bool IsSatisfied(Schedule schedule, Lesson lesson)
         {
             if (lesson.AssignedTimeSlot == null)
             {

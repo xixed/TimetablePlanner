@@ -10,6 +10,6 @@ namespace TimetablePlanner.Core.Interfaces
     public interface IConstraint
     {
         string Name { get; }
-        bool IsSatisfied(Schedule schedule, ILesson lesson);
+        bool IsSatisfied(Schedule schedule, Lesson lesson);
     }
 }

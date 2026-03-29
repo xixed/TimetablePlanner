@@ -7,24 +7,16 @@ using TimetablePlanner.Core.Interfaces;
 
 namespace TimetablePlanner.Core.Models
 {
-    public class Lesson : ILesson
+    public class Lesson
     {
         public int Id { get ; set; }
-        public ISubject Subject { get; set ; }
+        public Subject Subject { get; set ; }
 
-        public ITeacher Teacher { get ; set ; }
-        public IClassGroup ClassGroup { get ; set ; }
-        public IRoom? AssignedRoom { get ; set ; }
-        public ITimeSlot? AssignedTimeSlot { get ; set ; }
-        public ILessonRequirement Requirement { get ; set; }
-
-        // Constructor for Lesson with all properties
-        public Lesson(ISubject subject, ITeacher teacher, IClassGroup classGroup)
-        {
-            this.Subject = subject;
-            this.ClassGroup = classGroup;
-            this.Teacher = teacher;
-        }
+        public Teacher Teacher { get ; set ; }
+        public ClassGroup ClassGroup { get ; set ; }
+        public Room? AssignedRoom { get ; set ; }
+        public TimeSlot? AssignedTimeSlot { get ; set ; }
+        public LessonRequirement Requirement { get ; set; }
 
         // Parameterless constructor for Teacher
         public Lesson() { }

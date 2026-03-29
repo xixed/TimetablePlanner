@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TimetablePlanner.Core\TimetablePlanner.Core.csproj" />
+    <ProjectReference Include="..\TimetablePlanner.Data\TimetablePlanner.Data.csproj" />
   </ItemGroup>
 
 </Project>

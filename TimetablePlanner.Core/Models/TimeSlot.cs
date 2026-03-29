@@ -9,6 +9,8 @@ namespace TimetablePlanner.Core.Models
 {
     public class TimeSlot : ITimeSlot
     {
+
+        public int Id { get; set; }
         public int Day { get; set; }
         public int Period { get; set; }
 

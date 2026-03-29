@@ -7,14 +7,14 @@ using TimetablePlanner.Core.Interfaces;
 
 namespace TimetablePlanner.Core.Models
 {
-    public class LessonRequirement : ILessonRequirement
+    public class LessonRequirement
     {
-        public ISubject Subject { get ; set; }
-        public ITeacher Teacher { get ; set ; }
-        public IClassGroup ClassGroup { get ; set ; }
-        public List<ITimeSlot> PossibleTimeSlots { get; set ; }
+        public Subject Subject { get ; set; }
+        public Teacher Teacher { get ; set ; }
+        public ClassGroup ClassGroup { get ; set ; }
+        public List<TimeSlot> PossibleTimeSlots { get; set ; }
         public int WeeklyHours { get; set; }
-        public List<IRoom> SuitableRooms { get ; set; }
+        public List<Room> SuitableRooms { get ; set; }
         public int Id { get; set; }
     }
 }
