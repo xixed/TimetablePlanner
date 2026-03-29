@@ -9,9 +9,19 @@ namespace TimetablePlanner.Core.Models
 {
     public class ClassGroup : IClassGroup
     {
-        public int Id { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public string Name { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int Size { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public List<Subject> Subjects { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int Id { get ; set ; }
+        public string Name { get ; set ; }
+        public int Size { get; set; }
+        public List<Subject> Subjects { get; set; }
+
+        // Constructor for ClassGroup with all properties
+        public ClassGroup(string name, int size, List<Subject> subjects)
+        {
+            this.Name = name;
+            this.Size = size;
+            this.Subjects = subjects;
+        }
+        // Parameterless constructor for ClassGroup
+        public ClassGroup() { }
     }
 }

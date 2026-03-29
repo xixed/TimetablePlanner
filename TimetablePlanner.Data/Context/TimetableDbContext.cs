@@ -16,6 +16,7 @@ namespace TimetablePlanner.Data.Context
         }
         
         public DbSet<Teacher> Teachers { get; set; }
+        public DbSet<TeacherType> TeacherTypes { get; set; }
         public DbSet<Room> Rooms { get; set; }
         public DbSet<Subject> Subjects { get; set; }
         public DbSet<Class> Classes { get; set; }
