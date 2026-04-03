@@ -11,6 +11,8 @@ namespace TimetablePlanner.Core.Models
     {
         public List<Lesson> Lessons { get; set; } = new List<Lesson>();
 
+        public List<LessonRequirement> UnfulfilledRequirements { get; set; } = new();
+
         public Schedule() { }
 
         public void AddLesson(Lesson lesson)

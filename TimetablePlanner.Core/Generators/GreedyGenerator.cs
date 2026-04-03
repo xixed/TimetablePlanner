@@ -17,9 +17,9 @@ namespace TimetablePlanner.Core.Generators
             _constraints = constraints;
         }
 
-        public GenerationResult Generate(List<LessonRequirement> requirements)
+        public Schedule Generate(List<LessonRequirement> requirements)
         {
-            var result = new GenerationResult();
+            var result = new Schedule();
             int lessonId = 1;
 
             foreach (var requirement in requirements)
@@ -47,14 +47,14 @@ namespace TimetablePlanner.Core.Generators
                             AssignedRoom = room
                         };
 
-                        bool isValid = _constraints.All(c => c.IsSatisfied(result.Schedule, lesson));
+                        bool isValid = _constraints.All(c => c.IsSatisfied(result, lesson));
 
                         if (!isValid)
                         {
                             continue;
                         }
 
-                        result.Schedule.Lessons.Add(lesson);
+                        result.Lessons.Add(lesson);
                         lessonId++;
                         placedCount++;
                         break;

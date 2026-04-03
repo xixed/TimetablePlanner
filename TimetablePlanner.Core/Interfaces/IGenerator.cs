@@ -7,8 +7,9 @@ using TimetablePlanner.Core.Models;
 
 namespace TimetablePlanner.Core.Interfaces
 {
-    public interface IScheduleGenerationService
+    public interface IGenerator
     {
-        Schedule GenerateSchedule();
+        List<IConstraint> _constraints { get; set; }
+        Schedule Generate(List<LessonRequirement> requirements);
     }
 }

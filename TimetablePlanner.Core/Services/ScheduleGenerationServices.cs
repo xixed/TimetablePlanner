@@ -19,7 +19,7 @@ namespace TimetablePlanner.Core.Services
             _repository = schoolRepository;
         }
 
-        public GenerationResult GenerateSchedule()
+        public Schedule GenerateSchedule()
         {
             var requirements = _repository.GetLessonRequirements();
 
