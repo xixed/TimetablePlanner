@@ -14,6 +14,8 @@ namespace TimetablePlanner.Core.Models
         public int Day { get; set; }
         public int Period { get; set; }
 
+        public List<LessonRequirement> LessonRequirements { get; set; } = new();
+
         // Constructor for TimeSlot with all properties
         public TimeSlot(int day, int period)
         {

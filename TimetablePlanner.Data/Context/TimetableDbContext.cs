@@ -24,6 +24,20 @@ namespace TimetablePlanner.Data.Context
         public DbSet<TimeSlot> TimeSlots { get; set; }
         public DbSet<LessonRequirement> LessonRequirements { get; set; }
 
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<LessonRequirement>()
+                .HasMany(lr => lr.PossibleTimeSlots)
+                .WithMany(ts => ts.LessonRequirements)
+                .UsingEntity(j => j.ToTable("LessonRequirementPossibleTimeSlots"));
+
+            modelBuilder.Entity<LessonRequirement>()
+                .HasMany(lr => lr.SuitableRooms)
+                .WithMany(r => r.LessonRequirements)
+                .UsingEntity(j => j.ToTable("LessonRequirementSuitableRooms"));
+        }
 
     }
 }

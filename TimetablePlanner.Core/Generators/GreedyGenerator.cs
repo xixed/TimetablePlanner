@@ -8,14 +8,16 @@ using TimetablePlanner.Core.Models;
 
 namespace TimetablePlanner.Core.Generators
 {
-    public class GreedyGenerator
+    public class GreedyGenerator : IGenerator
     {
-        private readonly List<IConstraint> _constraints;
+        public List<IConstraint> _constraints { get; set; }
 
         public GreedyGenerator(List<IConstraint> constraints)
         {
             _constraints = constraints;
         }
+
+
 
         public Schedule Generate(List<LessonRequirement> requirements)
         {
@@ -24,15 +26,21 @@ namespace TimetablePlanner.Core.Generators
 
             foreach (var requirement in requirements)
             {
-                
+                if (requirement == null)
+                    continue;
+
+                if (requirement.PossibleTimeSlots == null || requirement.SuitableRooms == null)
+                {
+                    result.UnfulfilledRequirements.Add(requirement);
+                    continue;
+                }
+
                 int placedCount = 0;
 
                 foreach (var timeSlot in requirement.PossibleTimeSlots)
                 {
                     if (placedCount >= requirement.WeeklyHours)
-                    {
                         break;
-                    }
 
                     foreach (var room in requirement.SuitableRooms)
                     {
@@ -50,26 +58,24 @@ namespace TimetablePlanner.Core.Generators
                         bool isValid = _constraints.All(c => c.IsSatisfied(result, lesson));
 
                         if (!isValid)
-                        {
                             continue;
-                        }
 
-                        result.Lessons.Add(lesson);
+                        result.AddLesson(lesson);
                         lessonId++;
                         placedCount++;
                         break;
                     }
                 }
-                
+
                 if (placedCount < requirement.WeeklyHours)
                 {
                     result.UnfulfilledRequirements.Add(requirement);
                 }
             }
-            return result;
 
+            return result;
         }
-        
+
 
 
     }

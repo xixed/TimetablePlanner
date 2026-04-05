@@ -1,5 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.IO;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -17,7 +20,6 @@ using TimetablePlanner.Core.Services;
 using TimetablePlanner.Data.Context;
 using TimetablePlanner.Data.Repositories;
 using TimetablePlanner.Data.Seed;
-using System.IO;
 
 
 namespace TimetablePlanner.UI;
@@ -34,6 +36,9 @@ public partial class MainWindow : Window
 
     private void RunTest()
     {
+        
+
+
         var options = new DbContextOptionsBuilder<TimetableDbContext>()
         .UseSqlite("Data Source=timetable.db")
         .Options;

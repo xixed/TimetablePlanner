@@ -25,7 +25,7 @@ namespace TimetablePlanner.Data.Seed
             {
                 if (clearExisting)
                 {
-                    // adjust to your cascade rules / table names
+                    
                     context.LessonRequirements.RemoveRange(context.LessonRequirements);
                     context.TimeSlots.RemoveRange(context.TimeSlots);
                     context.Rooms.RemoveRange(context.Rooms);
@@ -65,7 +65,7 @@ namespace TimetablePlanner.Data.Seed
                 }
                 context.TeacherTypes.AddRange(types);
 
-                // Teachers (assign Subjects and TeacherType)
+                // Teachers
                 var teachers = new List<Teacher>();
                 var teacherById = new Dictionary<int, Teacher>();
                 if (dto.Teachers != null)
@@ -111,7 +111,7 @@ namespace TimetablePlanner.Data.Seed
                 }
                 context.Classes.AddRange(classes);
 
-                // Groups (import and wire Classes if present)
+                // Groups
                 var groups = new List<Group>();
                 var groupById = new Dictionary<int, Group>();
                 if (dto.Groups != null)
@@ -182,9 +182,9 @@ namespace TimetablePlanner.Data.Seed
                 }
                 context.TimeSlots.AddRange(times);
 
-                context.SaveChanges(); // persist basics so relationships can reference tracked entities
+                context.SaveChanges();
 
-                // LessonRequirements (wire navigation props using dictionaries)
+                // LessonRequirements
                 var requirements = new List<LessonRequirement>();
                 foreach (var ld in dto.LessonRequirements ?? Enumerable.Empty<LessonReqDto>())
                 {
@@ -210,14 +210,12 @@ namespace TimetablePlanner.Data.Seed
                             if (timeById.TryGetValue(tid, out var ts)) req.PossibleTimeSlots.Add(ts);
                     }
 
-                    // validate required non-null fields that your DB expects
+                    
                     if (req.ClassGroup == null) throw new InvalidOperationException($"LessonRequirement {ld.Id} references missing classGroup {ld.ClassGroupId}");
                     if (req.Subject == null) throw new InvalidOperationException($"LessonRequirement {ld.Id} references missing subject {ld.SubjectId}");
                     if (req.Teacher == null) throw new InvalidOperationException($"LessonRequirement {ld.Id} references missing teacher {ld.TeacherId}");
 
-                    // Ensure ClassGroup.Name satisfies NOT NULL DB constraint
-                    if (string.IsNullOrWhiteSpace(req.ClassGroup.Name))
-                        req.ClassGroup.Name = $"ClassGroup_{ld.ClassGroupId}";
+                    
 
                     requirements.Add(req);
                 }
@@ -233,7 +231,7 @@ namespace TimetablePlanner.Data.Seed
             }
         }
 
-        // DTOs mirroring the JSON structure (only necessary fields)
+        
         private class TestSchoolDto
         {
             public List<SubjectDto>? Subjects { get; set; }

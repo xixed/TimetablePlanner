@@ -14,6 +14,8 @@ namespace TimetablePlanner.Core.Models
         public int Capacity { get ; set ; }
         public List<Subject> Subjects { get ; set ; }
 
+        public List<LessonRequirement> LessonRequirements { get; set; } = new();
+
         // Constructor for Room with all properties
         public Room(string name, int capacity, List<Subject> subjects)
         {
