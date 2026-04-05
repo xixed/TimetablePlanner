@@ -10,6 +10,8 @@ namespace TimetablePlanner.Core.Interfaces
     public interface ISchoolRepository
     {
         List<Teacher> GetTeachers();
+
+        List<TeacherType> GetTeacherTypes();
         List<Subject> GetSubjects();
         List<Room> GetRooms();
         List<Class> GetClasses();
@@ -18,6 +20,8 @@ namespace TimetablePlanner.Core.Interfaces
         List<LessonRequirement> GetLessonRequirements();
 
         void AddTeacher(Teacher teacher);
+
+        void AddTeacherType(TeacherType teacherType);
         void AddSubject(Subject subject);
         void AddRoom(Room room);
         void AddClass(Class classGroup);

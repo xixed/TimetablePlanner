@@ -11,15 +11,17 @@ namespace TimetablePlanner.Core.Models
     {
         public int Id { get; set; }
         public string Name { get ; set ; }
-        public List<Subject> Subjects { get ; set ; }
+        
+        public List<Subject> Subjects { get; set; }
+
         public TeacherType TeacherType { get ; set ; }
         public List<TimeSlot> UnavailableTimeSlots { get ; set ; }
 
         // Constructor for Teacher with all properties
-        public Teacher(string name, List<Subject> subjects, TeacherType teacherType, List<TimeSlot> unavailableTimeSlots)
+        public Teacher(string name, TeacherType teacherType, List<TimeSlot> unavailableTimeSlots)
         {
             this.Name = name;
-            this.Subjects = subjects;
+            
             this.TeacherType = teacherType;
             this.UnavailableTimeSlots = unavailableTimeSlots;
         }

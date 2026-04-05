@@ -9,11 +9,6 @@ namespace TimetablePlanner.Core.Models
 {
     public class Class : ClassGroup
     {
-        public int Id { get; set; }
-        public string Name { get ; set; }
-        public int Size { get; set; }
-        public List<Subject> Subjects { get; set;} = new List<Subject>();
-
 
         // Constructor for Class with all properties
         public Class(string name, int size, List<Subject> subjects) 
@@ -28,10 +23,11 @@ namespace TimetablePlanner.Core.Models
         {
             this.Name = name;
             this.Size = size;
+            this.Subjects = new List<Subject>();
         }
 
         // Parameterless constructor for Class
-        public Class() { }
+        public Class() { this.Subjects = new List<Subject>(); }
 
 
         public void AddSubject(Subject subject)

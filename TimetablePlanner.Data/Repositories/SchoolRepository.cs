@@ -48,6 +48,11 @@ namespace TimetablePlanner.Data.Repositories
             _context.Teachers.Add(teacher);
         }
 
+        public void AddTeacherType(TeacherType teacherType)
+        {
+            _context.TeacherTypes.Add(teacherType);
+        }
+
         public void AddTimeSlot(TimeSlot timeSlot)
         {
             _context.TimeSlots.Add(timeSlot);
@@ -81,6 +86,11 @@ namespace TimetablePlanner.Data.Repositories
         public List<Teacher> GetTeachers()
         {
             return _context.Teachers.ToList();
+        }
+
+        public List<TeacherType> GetTeacherTypes()
+        {
+            return _context.TeacherTypes.ToList();
         }
 
         public List<TimeSlot> GetTimeSlots()
