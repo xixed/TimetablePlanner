@@ -4,17 +4,19 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TimetablePlanner.Core.Interfaces;
+using TimetablePlanner.Core.Interfaces.Constraint;
 using TimetablePlanner.Core.Models;
 
 namespace TimetablePlanner.Core.Generators
 {
     public class GreedyGenerator : IGenerator
     {
-        public List<IConstraint> _constraints { get; set; }
+        public List<IHardConstraint> _hardConstraints { get; set; }
+        public List<ISoftConstraint> _softConstraints { get; set; } = new List<ISoftConstraint>();
 
-        public GreedyGenerator(List<IConstraint> constraints)
+        public GreedyGenerator(List<IHardConstraint> constraints)
         {
-            _constraints = constraints;
+            _hardConstraints = constraints;
         }
 
 
@@ -55,7 +57,7 @@ namespace TimetablePlanner.Core.Generators
                             AssignedRoom = room
                         };
 
-                        bool isValid = _constraints.All(c => c.IsSatisfied(result, lesson));
+                        bool isValid = _hardConstraints.All(c => c.IsSatisfied(result, lesson));
 
                         if (!isValid)
                             continue;

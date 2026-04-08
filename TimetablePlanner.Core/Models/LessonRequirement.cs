@@ -16,5 +16,7 @@ namespace TimetablePlanner.Core.Models
         public int WeeklyHours { get; set; }
         public List<Room> SuitableRooms { get ; set; }
         public int Id { get; set; }
+
+        public bool PreferDoubleLesson { get; set; } = false;
     }
 }

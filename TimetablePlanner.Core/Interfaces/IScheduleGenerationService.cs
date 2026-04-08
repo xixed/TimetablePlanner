@@ -9,6 +9,6 @@ namespace TimetablePlanner.Core.Interfaces
 {
     public interface IScheduleGenerationService
     {
-        Schedule GenerateSchedule();
+        List<Schedule> GenerateSchedule();
     }
 }

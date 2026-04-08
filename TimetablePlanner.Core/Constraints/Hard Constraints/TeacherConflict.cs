@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TimetablePlanner.Core.Interfaces;
+using TimetablePlanner.Core.Interfaces.Constraint;
 using TimetablePlanner.Core.Models;
 
 namespace TimetablePlanner.Core.Constraints.Hard_Constraints
 {
-    public class TeacherConflict : IConstraint
+    public class TeacherConflict : IHardConstraint
     {
         public string Name => "Teacher conflict";
 

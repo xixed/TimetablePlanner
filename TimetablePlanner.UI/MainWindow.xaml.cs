@@ -13,8 +13,9 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using TimetablePlanner.Core.Constraints.Hard_Constraints;
+using TimetablePlanner.Core.Constraints.Soft_Constraints;
 using TimetablePlanner.Core.Generators;
-using TimetablePlanner.Core.Interfaces;
+using TimetablePlanner.Core.Interfaces.Constraint;
 using TimetablePlanner.Core.Models;
 using TimetablePlanner.Core.Services;
 using TimetablePlanner.Data.Context;
@@ -53,38 +54,41 @@ public partial class MainWindow : Window
         MessageBox.Show("Import finished.", "Info");
 
 
-        var constraints = new List<IConstraint>
-        {
-            new TeacherConflict(),
-            new RoomConflict(),
-            new ClassConflict(),
-        };
+        ScheduleGenerationServices scheduleService = new ScheduleGenerationServices(new SchoolRepository(context));
 
-        var generator = new GreedyGenerator(constraints);
+        var scheduleList = scheduleService.GenerateSchedule();
 
-        var requirements = context.LessonRequirements
-            .Include(lr => lr.Subject)
-            .Include(lr => lr.Teacher)
-            .Include(lr => lr.ClassGroup)
-            .Include(lr => lr.PossibleTimeSlots)
-            .Include(lr => lr.SuitableRooms)
-            .ToList();
 
-        var schedule = generator.Generate(requirements);
 
         var outputPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "schedule_output.txt");
 
         using (var writer = new StreamWriter(outputPath))
         {
-            foreach (var lesson in schedule.Lessons)
+            
+            foreach (var lesson in scheduleList[0].Lessons)
             {
                 writer.WriteLine($"Lesson {lesson.Id}: {lesson.Subject.Name} with {lesson.Teacher.Name} for {lesson.ClassGroup.Name} at {lesson.AssignedTimeSlot.Day} {lesson.AssignedTimeSlot.Period} in {lesson.AssignedRoom.Name}");
             }
 
-            foreach (var unfilled in requirements.Where(r => !schedule.Lessons.Any(l => l.Requirement.Id == r.Id)))
+            foreach (var unfilled in scheduleList[0].UnfulfilledRequirements)
             {
                 writer.WriteLine($"Unscheduled: {unfilled.Subject.Name} for {unfilled.ClassGroup.Name} ({unfilled.WeeklyHours} hours/week)");
             }
+            writer.WriteLine($"Total Penalty: {scheduleList[0].TotalPenalty}");
+            writer.WriteLine("\n\n---\n\n");
+
+
+            foreach (var lesson in scheduleList[1].Lessons)
+            {
+                writer.WriteLine($"Lesson {lesson.Id}: {lesson.Subject.Name} with {lesson.Teacher.Name} for {lesson.ClassGroup.Name} at {lesson.AssignedTimeSlot.Day} {lesson.AssignedTimeSlot.Period} in {lesson.AssignedRoom.Name}");
+            }
+
+            foreach (var unfilled in scheduleList[1].UnfulfilledRequirements)
+            {
+                writer.WriteLine($"Unscheduled: {unfilled.Subject.Name} for {unfilled.ClassGroup.Name} ({unfilled.WeeklyHours} hours/week)");
+            }
+            writer.WriteLine($"Total Penalty: {scheduleList[1].TotalPenalty}");
+
         }
 
         MessageBox.Show($"Schedule generated and saved to {outputPath}", "Info");

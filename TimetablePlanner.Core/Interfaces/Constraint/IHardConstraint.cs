@@ -5,9 +5,9 @@ using System.Text;
 using System.Threading.Tasks;
 using TimetablePlanner.Core.Models;
 
-namespace TimetablePlanner.Core.Interfaces
+namespace TimetablePlanner.Core.Interfaces.Constraint
 {
-    public interface IConstraint
+    public interface IHardConstraint
     {
         string Name { get; }
         bool IsSatisfied(Schedule schedule, Lesson lesson);
