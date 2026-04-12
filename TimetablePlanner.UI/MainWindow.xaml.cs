@@ -37,8 +37,6 @@ public partial class MainWindow : Window
 
     private void RunTest()
     {
-        
-
 
         var options = new DbContextOptionsBuilder<TimetableDbContext>()
         .UseSqlite("Data Source=timetable.db")
@@ -64,7 +62,7 @@ public partial class MainWindow : Window
 
         using (var writer = new StreamWriter(outputPath))
         {
-            
+
             foreach (var lesson in scheduleList[0].Lessons)
             {
                 writer.WriteLine($"Lesson {lesson.Id}: {lesson.Subject.Name} with {lesson.Teacher.Name} for {lesson.ClassGroup.Name} at {lesson.AssignedTimeSlot.Day} {lesson.AssignedTimeSlot.Period} in {lesson.AssignedRoom.Name}");
