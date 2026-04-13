@@ -53,8 +53,8 @@ namespace TimetablePlanner.Core.Generators
                                 AssignedRoom = room
                             };
 
-                            bool hardOk = _hardConstraints.All(c => c.IsSatisfied(result, candidate));
-                            if (!hardOk)
+                            bool isValid = _hardConstraints.All(c => c.IsSatisfied(result, candidate));
+                            if (!isValid)
                                 continue;
 
                             int penalty = _softConstraints.Sum(c => c.GetPenalty(result, candidate));
@@ -63,7 +63,7 @@ namespace TimetablePlanner.Core.Generators
                             {
                                 bestPenalty = penalty;
                                 bestLesson = candidate;
-                                result.TotalPenalty = bestPenalty;
+                                
                             }
                         }
                     }
@@ -71,6 +71,7 @@ namespace TimetablePlanner.Core.Generators
                     if (bestLesson != null)
                     {
                         result.Lessons.Add(bestLesson);
+                        result.TotalPenalty = bestPenalty;
                         lessonId++;
                         placedCount++;
                     }

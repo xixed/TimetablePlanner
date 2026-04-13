@@ -1,0 +1,6 @@
+﻿DoubleLessonPreference = 8
+LessonSplitOnSameDay = 1/gap
+TeacherGap = 10/gap
+ClassGap = 15/gap
+RoomStability = 5/room if > 1
+TeacherOneLessonAvoidance = 20

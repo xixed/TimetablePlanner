@@ -36,7 +36,11 @@ namespace TimetablePlanner.Core.Services
             var softConstraints = new List<ISoftConstraint>
             {
                 new Constraints.Soft_Constraints.DoubleLessonPreference(),
-                new Constraints.Soft_Constraints.LessonSplitOnSameDay()
+                new Constraints.Soft_Constraints.LessonSplitOnSameDay(),
+                new Constraints.Soft_Constraints.TeacherGap(),
+                new Constraints.Soft_Constraints.ClassGap(),
+                new Constraints.Soft_Constraints.RoomStability(),
+                new Constraints.Soft_Constraints.TeacherOneLessonAvoidance()
             };
 
             var generators = new List<IGenerator>
