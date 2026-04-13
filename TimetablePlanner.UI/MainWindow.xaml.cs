@@ -38,6 +38,28 @@ public partial class MainWindow : Window
     private void RunTest()
     {
 
+
+        //var path = "test_school.json";
+        //var json = File.ReadAllText(path);
+
+        //var root = JsonNode.Parse(json);
+
+        //var lessonRequirements = root["lessonRequirements"].AsArray();
+
+        //var rooms = Enumerable.Range(1, 25).ToArray();
+        //var timeslots = Enumerable.Range(1, 50).ToArray();
+
+        //foreach (var lr in lessonRequirements)
+        //{
+        //    lr["suitableRoomIds"] = JsonSerializer.SerializeToNode(rooms);
+        //    lr["possibleTimeSlotIds"] = JsonSerializer.SerializeToNode(timeslots);
+        //}
+
+        //File.WriteAllText("test_school_fixed.json",
+        //    root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+
+        //Console.WriteLine("DONE");
+
         var options = new DbContextOptionsBuilder<TimetableDbContext>()
         .UseSqlite("Data Source=timetable.db")
         .Options;
