@@ -58,6 +58,11 @@ namespace TimetablePlanner.Data.Repositories
             _context.TimeSlots.Add(timeSlot);
         }
 
+        public void AddLesson(Lesson lesson)
+        {
+            _context.Lessons.Add(lesson);
+        }
+
         public List<Class> GetClasses()
         {
             return _context.Classes.ToList();
@@ -96,6 +101,11 @@ namespace TimetablePlanner.Data.Repositories
         public List<TimeSlot> GetTimeSlots()
         {
             return  _context.TimeSlots.ToList();
+        }
+
+        public List<Lesson> GetLessons()
+        {
+            return _context.Lessons.ToList();
         }
 
         public void SaveChanges()

@@ -24,6 +24,8 @@ namespace TimetablePlanner.Data.Context
         public DbSet<TimeSlot> TimeSlots { get; set; }
         public DbSet<LessonRequirement> LessonRequirements { get; set; }
 
+        public DbSet<Lesson> Lessons { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

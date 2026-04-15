@@ -9,73 +9,80 @@ using TimetablePlanner.Core.Models;
 
 namespace TimetablePlanner.Core.Generators
 {
-    public class GreedyGenerator : IGenerator
+    public class GreedyGenerator
     {
-        public List<IHardConstraint> _hardConstraints { get; set; }
-        public List<ISoftConstraint> _softConstraints { get; set; } = new List<ISoftConstraint>();
+        private readonly List<IHardConstraint> _hardConstraints;
+        private readonly List<ISoftConstraint> _softConstraints;
+        private readonly LessonsGenerator _lessonsGenerator;
 
-        public GreedyGenerator(List<IHardConstraint> constraints)
+        public GreedyGenerator(List<IHardConstraint> hardConstraints, List<ISoftConstraint> softConstraints, LessonsGenerator lessonsGenerator)
         {
-            _hardConstraints = constraints;
+            _hardConstraints = hardConstraints;
+            _softConstraints = softConstraints;
+            _lessonsGenerator = lessonsGenerator;
         }
 
 
 
         public Schedule Generate(List<LessonRequirement> requirements)
         {
-            var result = new Schedule();
-            int lessonId = 1;
+            var schedule = new Schedule();
 
-            foreach (var requirement in requirements)
+            
+            var lessonsToPlace = _lessonsGenerator.Generate(requirements);
+
+            
+            lessonsToPlace = lessonsToPlace
+                .OrderBy(l => l.Requirement.PossibleTimeSlots.Count)
+                .ThenBy(l => l.Requirement.SuitableRooms.Count)
+                .ToList();
+
+            foreach (var lesson in lessonsToPlace)
             {
-                if (requirement == null)
-                    continue;
+                Lesson? bestCandidate = null;
+                int bestPenalty = int.MaxValue;
 
-                if (requirement.PossibleTimeSlots == null || requirement.SuitableRooms == null)
+                foreach (var timeSlot in lesson.Requirement.PossibleTimeSlots)
                 {
-                    result.UnfulfilledRequirements.Add(requirement);
-                    continue;
-                }
-
-                int placedCount = 0;
-
-                foreach (var timeSlot in requirement.PossibleTimeSlots)
-                {
-                    if (placedCount >= requirement.WeeklyHours)
-                        break;
-
-                    foreach (var room in requirement.SuitableRooms)
+                    foreach (var room in lesson.Requirement.SuitableRooms)
                     {
-                        var lesson = new Lesson
+                        var candidate = new Lesson
                         {
-                            Id = lessonId,
-                            Subject = requirement.Subject,
-                            Teacher = requirement.Teacher,
-                            ClassGroup = requirement.ClassGroup,
-                            Requirement = requirement,
+                            Id = lesson.Id,
+                            Subject = lesson.Subject,
+                            Teacher = lesson.Teacher,
+                            ClassGroup = lesson.ClassGroup,
+                            Requirement = lesson.Requirement,
                             AssignedTimeSlot = timeSlot,
                             AssignedRoom = room
                         };
 
-                        bool isValid = _hardConstraints.All(c => c.IsSatisfied(result, lesson));
-
-                        if (!isValid)
+                        bool hardOk = _hardConstraints.All(c => c.IsSatisfied(schedule, candidate));
+                        if (!hardOk)
                             continue;
 
-                        result.AddLesson(lesson);
-                        lessonId++;
-                        placedCount++;
-                        break;
+                        int penalty = _softConstraints.Sum(c => c.GetPenalty(schedule, candidate));
+
+                        if (penalty < bestPenalty)
+                        {
+                            bestPenalty = penalty;
+                            bestCandidate = candidate;
+                        }
                     }
                 }
 
-                if (placedCount < requirement.WeeklyHours)
+                if (bestCandidate != null)
                 {
-                    result.UnfulfilledRequirements.Add(requirement);
+                    schedule.AddLesson(bestCandidate);
+                    schedule.TotalPenalty += bestPenalty;
+                }
+                else
+                {
+                    schedule.UnScheduledLessons.Add(lesson);
                 }
             }
 
-            return result;
+            return schedule;
         }
 
 

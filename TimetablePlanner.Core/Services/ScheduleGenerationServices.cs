@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TimetablePlanner.Core.Generators;
 using TimetablePlanner.Core.Interfaces;
 using TimetablePlanner.Core.Interfaces.Constraint;
 using TimetablePlanner.Core.Models;
@@ -24,6 +25,8 @@ namespace TimetablePlanner.Core.Services
         {
             var requirements = _repository.GetLessonRequirements();
 
+            var lessonsGenerator = new LessonsGenerator();
+
             var hardConstraints = new List<IHardConstraint>
             {
                 new Constraints.Hard_Constraints.ClassConflict(),
@@ -43,26 +46,12 @@ namespace TimetablePlanner.Core.Services
                 new Constraints.Soft_Constraints.TeacherOneLessonAvoidance()
             };
 
-            var generators = new List<IGenerator>
-            {
-                new Generators.GreedyGenerator(hardConstraints),
-                new Generators.GreedyPenaltyGenerator(hardConstraints, softConstraints)
-            };
+            var generator = new Generators.GreedyGenerator(hardConstraints, softConstraints, lessonsGenerator);
 
             List<Schedule> result = new List<Schedule>();
 
-            foreach (var generator in generators)
-            {
-                var schedule = generator.Generate(requirements);
-                result.Add(schedule);
-
-            }
-
-            
-
-            
-
-            
+            var schedule = generator.Generate(requirements);
+            result.Add(schedule);
 
             return result;
 

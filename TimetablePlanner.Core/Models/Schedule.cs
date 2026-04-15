@@ -11,7 +11,7 @@ namespace TimetablePlanner.Core.Models
     {
         public List<Lesson> Lessons { get; set; } = new List<Lesson>();
 
-        public List<LessonRequirement> UnfulfilledRequirements { get; set; } = new();
+        public List<Lesson> UnScheduledLessons { get; set; } = new();
 
         public int TotalPenalty { get; set; } = 0;
 

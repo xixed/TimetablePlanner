@@ -90,25 +90,12 @@ public partial class MainWindow : Window
                 writer.WriteLine($"Lesson {lesson.Id}: {lesson.Subject.Name} with {lesson.Teacher.Name} for {lesson.ClassGroup.Name} at {lesson.AssignedTimeSlot.Day} {lesson.AssignedTimeSlot.Period} in {lesson.AssignedRoom.Name}");
             }
 
-            foreach (var unfilled in scheduleList[0].UnfulfilledRequirements)
+            foreach (var unfilled in scheduleList[0].UnScheduledLessons)
             {
-                writer.WriteLine($"Unscheduled: {unfilled.Subject.Name} for {unfilled.ClassGroup.Name} ({unfilled.WeeklyHours} hours/week)");
+                writer.WriteLine($"Unscheduled: {unfilled.Subject.Name} for {unfilled.ClassGroup.Name} ({unfilled.Requirement.WeeklyHours} hours/week)");
             }
             writer.WriteLine($"Total Penalty: {scheduleList[0].TotalPenalty}");
             writer.WriteLine("\n\n---\n\n");
-
-
-            foreach (var lesson in scheduleList[1].Lessons)
-            {
-                writer.WriteLine($"Lesson {lesson.Id}: {lesson.Subject.Name} with {lesson.Teacher.Name} for {lesson.ClassGroup.Name} at {lesson.AssignedTimeSlot.Day} {lesson.AssignedTimeSlot.Period} in {lesson.AssignedRoom.Name}");
-            }
-
-            foreach (var unfilled in scheduleList[1].UnfulfilledRequirements)
-            {
-                writer.WriteLine($"Unscheduled: {unfilled.Subject.Name} for {unfilled.ClassGroup.Name} ({unfilled.WeeklyHours} hours/week)");
-            }
-            writer.WriteLine($"Total Penalty: {scheduleList[1].TotalPenalty}");
-
         }
 
         MessageBox.Show($"Schedule generated and saved to {outputPath}", "Info");
