@@ -33,6 +33,7 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         RunTest();
+        //asd
     }
 
     private void RunTest()
