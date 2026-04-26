@@ -4,6 +4,164 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:TimetablePlanner.UI"
-        mc:Ignorable="d" Title="MainWindow" Height="500" Width="800">
-    <Grid x:Name="Main" HorizontalAlignment="Center" Width="800" Margin="0,0,0,0"/>
+        mc:Ignorable="d"
+        Title="Timetable Planner"
+        Height="620"
+        Width="960"
+        MinHeight="560"
+        MinWidth="900"
+        Background="#F6F8FB">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="16"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="16"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Main goal: start generation quickly with sensible defaults. -->
+        <Border Grid.Row="0"
+                Background="White"
+                CornerRadius="12"
+                BorderBrush="#D6DBE5"
+                BorderThickness="1"
+                Padding="20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="Timetable Planner"
+                               FontSize="24"
+                               FontWeight="SemiBold"
+                               Foreground="#1C2434"/>
+                    <TextBlock Margin="0,6,0,0"
+                               Text="Generate a timetable from the current seed data and review results."
+                               Foreground="#4A5568"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <Button Content="Generate Timetable"
+                            MinWidth="170"
+                            Height="40"
+                            Margin="0,0,8,0"
+                            Background="#2563EB"
+                            Foreground="White"
+                            BorderBrush="#2563EB"/>
+                    <Button Content="Open Output"
+                            MinWidth="120"
+                            Height="40"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Progressive disclosure for advanced workflow steps. -->
+        <Border Grid.Row="2"
+                Background="White"
+                CornerRadius="12"
+                BorderBrush="#D6DBE5"
+                BorderThickness="1"
+                Padding="16">
+            <Expander Header="Advanced options"
+                      IsExpanded="False">
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Margin="0,0,12,0">
+                        <TextBlock Text="Data setup"
+                                   FontWeight="SemiBold"
+                                   Foreground="#1C2434"/>
+                        <TextBlock Margin="0,4,0,10"
+                                   Text="Use before generation when you need to reset or re-import data."
+                                   Foreground="#4A5568"
+                                   TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Recreate Database"
+                                    Margin="0,0,8,0"
+                                    MinWidth="130"/>
+                            <Button Content="Import Seed Data"
+                                    MinWidth="120"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1"
+                                Margin="12,0,0,0">
+                        <TextBlock Text="Generation policy"
+                                   FontWeight="SemiBold"
+                                   Foreground="#1C2434"/>
+                        <TextBlock Margin="0,4,0,10"
+                                   Text="Extension region reserved for future generator settings and optimization toggles."
+                                   Foreground="#4A5568"
+                                   TextWrapping="Wrap"/>
+                        <CheckBox Content="Validate constraints before generation"
+                                  IsChecked="True"
+                                  Margin="0,0,0,6"/>
+                        <CheckBox Content="Save diagnostic details to output"/>
+                    </StackPanel>
+                </Grid>
+            </Expander>
+        </Border>
+
+        <!-- State surface: idle/loading/success/error/empty live here. -->
+        <Border Grid.Row="4"
+                Background="White"
+                CornerRadius="12"
+                BorderBrush="#D6DBE5"
+                BorderThickness="1"
+                Padding="16">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <DockPanel Grid.Row="0">
+                    <TextBlock Text="Run status"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="#1C2434"/>
+                    <TextBlock Text="idle"
+                               Margin="10,0,0,0"
+                               Foreground="#64748B"
+                               VerticalAlignment="Center"/>
+                </DockPanel>
+
+                <Border Grid.Row="2"
+                        BorderBrush="#E2E8F0"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12"
+                        Background="#FAFCFF">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="10"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0"
+                                   Text="Output"
+                                   FontWeight="SemiBold"
+                                   Foreground="#1C2434"/>
+                        <TextBox Grid.Row="2"
+                                 IsReadOnly="True"
+                                 AcceptsReturn="True"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Auto"
+                                 TextWrapping="Wrap"
+                                 Text="No run started yet. Use &quot;Generate Timetable&quot; to begin."/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
 </Window>
