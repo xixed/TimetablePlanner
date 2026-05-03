@@ -3,165 +3,157 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:TimetablePlanner.UI"
         mc:Ignorable="d"
         Title="Timetable Planner"
-        Height="620"
-        Width="960"
-        MinHeight="560"
-        MinWidth="900"
-        Background="#F6F8FB">
-    <Grid Margin="24">
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        MinWidth="1024"
+        MinHeight="600"
+        Background="#0F172A">
+    <Window.Resources>
+        <!-- Gépes / érintésbarát: nagyobb célterület, jó kontraszt -->
+        <Style x:Key="KioskTopBarButton" TargetType="Button">
+            <Setter Property="MinHeight" Value="48"/>
+            <Setter Property="MinWidth" Value="112"/>
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#F8FAFC"/>
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="BorderBrush" Value="#475569"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="KioskAccentButton" TargetType="Button" BasedOn="{StaticResource KioskTopBarButton}">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="BorderBrush" Value="#1D4ED8"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="16"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="16"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Main goal: start generation quickly with sensible defaults. -->
+        <!-- Felső sáv: gépes felület — elkülönített, minden kötelező gomb -->
         <Border Grid.Row="0"
-                Background="White"
-                CornerRadius="12"
-                BorderBrush="#D6DBE5"
-                BorderThickness="1"
-                Padding="20">
+                Background="#1E293B"
+                BorderBrush="#2563EB"
+                BorderThickness="0,0,0,3"
+                Padding="12,10">
             <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel>
+                <StackPanel Grid.Column="0"
+                            Orientation="Vertical"
+                            VerticalAlignment="Center"
+                            Margin="0,0,16,0">
                     <TextBlock Text="Timetable Planner"
-                               FontSize="24"
-                               FontWeight="SemiBold"
-                               Foreground="#1C2434"/>
-                    <TextBlock Margin="0,6,0,0"
-                               Text="Generate a timetable from the current seed data and review results."
-                               Foreground="#4A5568"/>
+                               FontSize="18"
+                               FontWeight="Bold"
+                               Foreground="#F8FAFC"/>
+                    <TextBlock Text="Órarend"
+                               FontSize="12"
+                               Foreground="#94A3B8"
+                               Margin="0,2,0,0"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1"
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center">
-                    <Button Content="Generate Timetable"
-                            MinWidth="170"
-                            Height="40"
-                            Margin="0,0,8,0"
-                            Background="#2563EB"
-                            Foreground="White"
-                            BorderBrush="#2563EB"/>
-                    <Button Content="Open Output"
-                            MinWidth="120"
-                            Height="40"/>
-                </StackPanel>
+                <WrapPanel Grid.Column="1"
+                           VerticalAlignment="Center"
+                           Orientation="Horizontal">
+                    <Button x:Name="BtnSettings"
+                            Content="Beállítások"
+                            Style="{StaticResource KioskTopBarButton}"
+                            Click="BtnSettings_Click">
+                        <Button.ContextMenu>
+                            <ContextMenu x:Name="SettingsContextMenu">
+                                <MenuItem Header="Adatbázis újraépítése"
+                                          Click="BtnRecreateDb_Click"/>
+                                <Separator/>
+                                <MenuItem x:Name="MenuChkValidate"
+                                          Header="Futtatás előtt ellenőrzés"
+                                          IsCheckable="True"
+                                          IsChecked="True"/>
+                                <MenuItem x:Name="MenuChkDiagnostics"
+                                          Header="Diagnosztika mentése"
+                                          IsCheckable="True"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
+                    <Button x:Name="BtnLessons"
+                            Content="Órák"
+                            Style="{StaticResource KioskTopBarButton}"
+                            Click="BtnLessons_Click"/>
+                    <Button x:Name="BtnTeachers"
+                            Content="Tanárok"
+                            Style="{StaticResource KioskTopBarButton}"
+                            Click="BtnTeachers_Click"/>
+                    <Button x:Name="BtnRooms"
+                            Content="Termek"
+                            Style="{StaticResource KioskTopBarButton}"
+                            Click="BtnRooms_Click"/>
+                    <Button x:Name="BtnGenerate"
+                            Content="Generálás"
+                            Style="{StaticResource KioskAccentButton}"
+                            Click="BtnGenerate_Click"/>
+                    <Button x:Name="BtnImport"
+                            Content="Import"
+                            Style="{StaticResource KioskTopBarButton}"
+                            Click="BtnImportSeed_Click"/>
+                    <Button x:Name="BtnExport"
+                            Content="Export"
+                            Style="{StaticResource KioskTopBarButton}"
+                            Click="BtnExport_Click"/>
+                    <Button x:Name="BtnView"
+                            Content="Nézet"
+                            Style="{StaticResource KioskTopBarButton}"
+                            Margin="0,0,0,0"
+                            Click="BtnView_Click"/>
+                </WrapPanel>
+
+                <TextBlock x:Name="StatusText"
+                           Grid.Column="2"
+                           Text="Kész."
+                           VerticalAlignment="Center"
+                           TextAlignment="Right"
+                           TextWrapping="Wrap"
+                           MaxWidth="320"
+                           Foreground="#CBD5E1"
+                           FontSize="13"/>
             </Grid>
         </Border>
 
-        <!-- Progressive disclosure for advanced workflow steps. -->
-        <Border Grid.Row="2"
-                Background="White"
-                CornerRadius="12"
-                BorderBrush="#D6DBE5"
-                BorderThickness="1"
-                Padding="16">
-            <Expander Header="Advanced options"
-                      IsExpanded="False">
-                <Grid Margin="0,12,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel Margin="0,0,12,0">
-                        <TextBlock Text="Data setup"
-                                   FontWeight="SemiBold"
-                                   Foreground="#1C2434"/>
-                        <TextBlock Margin="0,4,0,10"
-                                   Text="Use before generation when you need to reset or re-import data."
-                                   Foreground="#4A5568"
-                                   TextWrapping="Wrap"/>
-                        <StackPanel Orientation="Horizontal">
-                            <Button Content="Recreate Database"
-                                    Margin="0,0,8,0"
-                                    MinWidth="130"/>
-                            <Button Content="Import Seed Data"
-                                    MinWidth="120"/>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="1"
-                                Margin="12,0,0,0">
-                        <TextBlock Text="Generation policy"
-                                   FontWeight="SemiBold"
-                                   Foreground="#1C2434"/>
-                        <TextBlock Margin="0,4,0,10"
-                                   Text="Extension region reserved for future generator settings and optimization toggles."
-                                   Foreground="#4A5568"
-                                   TextWrapping="Wrap"/>
-                        <CheckBox Content="Validate constraints before generation"
-                                  IsChecked="True"
-                                  Margin="0,0,0,6"/>
-                        <CheckBox Content="Save diagnostic details to output"/>
-                    </StackPanel>
-                </Grid>
-            </Expander>
-        </Border>
-
-        <!-- State surface: idle/loading/success/error/empty live here. -->
-        <Border Grid.Row="4"
-                Background="White"
-                CornerRadius="12"
-                BorderBrush="#D6DBE5"
-                BorderThickness="1"
-                Padding="16">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="10"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-
-                <DockPanel Grid.Row="0">
-                    <TextBlock Text="Run status"
-                               FontSize="16"
-                               FontWeight="SemiBold"
-                               Foreground="#1C2434"/>
-                    <TextBlock Text="idle"
-                               Margin="10,0,0,0"
-                               Foreground="#64748B"
-                               VerticalAlignment="Center"/>
-                </DockPanel>
-
-                <Border Grid.Row="2"
-                        BorderBrush="#E2E8F0"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="12"
-                        Background="#FAFCFF">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="10"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-
-                        <TextBlock Grid.Row="0"
-                                   Text="Output"
-                                   FontWeight="SemiBold"
-                                   Foreground="#1C2434"/>
-                        <TextBox Grid.Row="2"
-                                 IsReadOnly="True"
-                                 AcceptsReturn="True"
-                                 VerticalScrollBarVisibility="Auto"
-                                 HorizontalScrollBarVisibility="Auto"
-                                 TextWrapping="Wrap"
-                                 Text="No run started yet. Use &quot;Generate Timetable&quot; to begin."/>
-                    </Grid>
-                </Border>
-            </Grid>
+        <!-- Táblázat: a teljes maradék képernyő -->
+        <Border Grid.Row="1"
+                Background="#F1F5F9"
+                Padding="8,8,8,8">
+            <DataGrid x:Name="ScheduleGrid"
+                      AutoGenerateColumns="True"
+                      IsReadOnly="True"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      CanUserReorderColumns="False"
+                      SelectionUnit="Cell"
+                      GridLinesVisibility="All"
+                      HeadersVisibility="Column"
+                      RowHeaderWidth="0"
+                      Background="White"
+                      BorderBrush="#CBD5E1"
+                      BorderThickness="1"
+                      HorizontalGridLinesBrush="#E2E8F0"
+                      VerticalGridLinesBrush="#E2E8F0"
+                      FontSize="14"
+                      ColumnHeaderHeight="44"
+                      AlternatingRowBackground="#F8FAFC"
+                      AutoGeneratingColumn="ScheduleGrid_AutoGeneratingColumn"
+                      MouseDoubleClick="ScheduleGrid_MouseDoubleClick"/>
         </Border>
     </Grid>
 </Window>
