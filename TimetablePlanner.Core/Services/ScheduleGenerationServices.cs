@@ -47,16 +47,46 @@ namespace TimetablePlanner.Core.Services
             };
 
             var generator = new Generators.GreedyGenerator(hardConstraints, softConstraints, lessonsGenerator);
+            
+            // 1) Gyors inicializálás Greedy-vel (ez garantálja a kezdeti hard constraint-megfelelést).
+            var initialSchedule = generator.Generate(requirements);
 
-            List<Schedule> result = new List<Schedule>();
+            // 2) MAX-SAT jellegű finomhangolás: hard constraint-eket megtartjuk, soft constraint-eket minimalizáljuk.
+            var maxsat = new MAXSAT(
+                hardConstraints,
+                softConstraints,
+                _repository.GetTimeSlots(),
+                _repository.GetRooms());
 
-            var schedule = generator.Generate(requirements);
-            result.Add(schedule);
+            var optimizedSchedule = maxsat.Optimize(initialSchedule, maxIterations: 8_000);
+            
+            // Score-ot konzisztensen számolunk a soft constraint-ek alapján.
+            // (Greedy a rész-ütemezés során kalkulálhat, ezért érdemes újraszámolni a teljes végső schedule-re.)
+            var initialScore = SumSoftPenalty(initialSchedule, softConstraints);
+            var optimizedScore = SumSoftPenalty(optimizedSchedule, softConstraints);
 
-            return result;
+            initialSchedule.TotalPenalty = initialScore;
+            optimizedSchedule.TotalPenalty = optimizedScore;
+
+            var finalSchedule = optimizedScore <= initialScore ? optimizedSchedule : initialSchedule;
+            return new List<Schedule> { finalSchedule };
 
 
 
+        }
+
+        private static int SumSoftPenalty(Schedule schedule, List<ISoftConstraint> softConstraints)
+        {
+            var total = 0;
+            foreach (var lesson in schedule.Lessons)
+            {
+                foreach (var sc in softConstraints)
+                {
+                    total += sc.GetPenalty(schedule, lesson);
+                }
+            }
+
+            return total;
         }
     }
 }

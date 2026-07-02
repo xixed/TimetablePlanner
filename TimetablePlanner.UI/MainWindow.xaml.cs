@@ -6,6 +6,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using Microsoft.EntityFrameworkCore;
@@ -30,7 +31,7 @@ namespace TimetablePlanner.UI
             InitializeComponent();
             StatusText.Text = "Készen áll. A Generálás gombbal készíthetsz órarendet.";
             ScheduleGrid.ItemsSource = null;
-            ScheduleGrid.RowHeight = double.NaN;
+            ScheduleGrid.RowHeight = 86;
         }
 
         private void BtnSettings_Click(object sender, RoutedEventArgs e)
@@ -78,14 +79,14 @@ namespace TimetablePlanner.UI
             if (_scheduleGridCompactView)
             {
                 ScheduleGrid.FontSize = 14;
-                ScheduleGrid.RowHeight = double.NaN;
+                ScheduleGrid.RowHeight = 86;
                 ScheduleGrid.ColumnHeaderHeight = 44;
                 StatusText.Text = "Nézet: normál.";
             }
             else
             {
                 ScheduleGrid.FontSize = 17;
-                ScheduleGrid.RowHeight = double.NaN;
+                ScheduleGrid.RowHeight = 112;
                 ScheduleGrid.ColumnHeaderHeight = 52;
                 StatusText.Text = "Nézet: nagyított (távolabbról is olvasható).";
             }
@@ -257,18 +258,30 @@ namespace TimetablePlanner.UI
                 _slotByColumn[caption] = (day, period);
             }
 
-            foreach (var className in lessons.Select(l => l.ClassGroup.Name).Distinct().OrderBy(n => n))
+            var lessonsByDisplayClass = lessons
+                .SelectMany(lesson =>
+                    GetDisplayClassNames(lesson).Select(className => new
+                    {
+                        ClassName = className,
+                        Lesson = lesson
+                    }))
+                .ToList();
+
+            foreach (var className in lessonsByDisplayClass.Select(x => x.ClassName).Distinct().OrderBy(n => n))
             {
                 var row = table.NewRow();
                 row["Osztály"] = className;
                 foreach (var (day, period) in slotKeys)
                 {
                     var caption = SlotColumnCaption(day, period);
-                    var subject = lessons
-                        .Where(l =>
-                            l.ClassGroup.Name == className &&
-                            l.AssignedTimeSlot!.Day == day &&
-                            l.AssignedTimeSlot.Period == period)
+                    var subject = lessonsByDisplayClass
+                        .Where(x =>
+                            x.ClassName == className &&
+                            x.Lesson.AssignedTimeSlot!.Day == day &&
+                            x.Lesson.AssignedTimeSlot.Period == period)
+                        .Select(x => x.Lesson)
+                        .GroupBy(l => l.Id)
+                        .Select(g => g.First())
                         .ToList();
 
                     _lessonsByCell[(className, day, period)] = subject;
@@ -281,6 +294,25 @@ namespace TimetablePlanner.UI
             ScheduleGrid.ItemsSource = table.DefaultView;
         }
 
+        private static IReadOnlyList<string> GetDisplayClassNames(Lesson lesson)
+        {
+            if (lesson.ClassGroup is Group group && group.Classes != null && group.Classes.Count > 0)
+            {
+                var classNames = group.Classes
+                    .Select(c => c.Name)
+                    .Where(n => !string.IsNullOrWhiteSpace(n))
+                    .Distinct()
+                    .ToList();
+
+                if (classNames.Count > 0)
+                {
+                    return classNames;
+                }
+            }
+
+            return [lesson.ClassGroup.Name];
+        }
+
         private void ScheduleGrid_AutoGeneratingColumn(object? sender, DataGridAutoGeneratingColumnEventArgs e)
         {
             if (e.Column is not DataGridTextColumn textColumn)
@@ -288,11 +320,19 @@ namespace TimetablePlanner.UI
                 return;
             }
 
+            textColumn.Binding = new Binding($"[{e.PropertyName}]")
+            {
+                Mode = BindingMode.OneWay,
+                FallbackValue = string.Empty,
+                TargetNullValue = string.Empty
+            };
+
             var wrapStyle = new Style(typeof(TextBlock));
             wrapStyle.Setters.Add(new Setter(TextBlock.TextWrappingProperty, TextWrapping.Wrap));
-            wrapStyle.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
+            wrapStyle.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Top));
             wrapStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(8, 6, 8, 6)));
-            wrapStyle.Setters.Add(new Setter(TextBlock.LineHeightProperty, 20d));
+            wrapStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Black));
+            wrapStyle.Setters.Add(new Setter(TextBlock.LineHeightProperty, 18d));
             wrapStyle.Setters.Add(new Setter(TextBlock.LineStackingStrategyProperty, LineStackingStrategy.BlockLineHeight));
             textColumn.ElementStyle = wrapStyle;
 
@@ -320,13 +360,10 @@ namespace TimetablePlanner.UI
 
         private static string FormatSingleLessonDisplay(Lesson lesson)
         {
-            var subjectName = lesson.Subject.Name;
-            var subjectAbbr = subjectName.Length >= 2
-                ? subjectName[..2]
-                : subjectName;
             var teacher = lesson.Teacher?.Name ?? "—";
             var room = lesson.AssignedRoom?.Name ?? "—";
-            return $"{subjectAbbr}{Environment.NewLine}{teacher}{Environment.NewLine}{room}";
+            var subjectName = lesson.Subject?.Name ?? "—";
+            return $"{subjectName}{Environment.NewLine}Terem: {room}{Environment.NewLine}Tanár: {teacher}";
         }
 
         private void ScheduleGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
