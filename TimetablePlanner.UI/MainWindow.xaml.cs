@@ -112,11 +112,15 @@ namespace TimetablePlanner.UI
             }
         }
 
-        private void BtnGenerate_Click(object sender, RoutedEventArgs e)
+        private async void BtnGenerate_Click(object sender, RoutedEventArgs e)
         {
             try
             {
                 StatusText.Text = "Futtatás…";
+                GenerationOverallProgressBar.Visibility = Visibility.Visible;
+                GenerationOverallProgressBar.Value = 0;
+                GenerationProgressBar.Visibility = Visibility.Visible;
+                GenerationProgressBar.Value = 0;
 
                 var options = new DbContextOptionsBuilder<TimetableDbContext>()
                     .UseSqlite("Data Source=timetable.db")
@@ -130,9 +134,21 @@ namespace TimetablePlanner.UI
                 JsonImporter.ImportFromFile(context, jsonPath, clearExisting: true);
 
                 var scheduleService = new ScheduleGenerationServices(new SchoolRepository(context));
-                var scheduleList = scheduleService.GenerateSchedule();
+
+                var progress = new Progress<TimetablePlanner.Core.Models.GenerationProgressReport>(r =>
+                {
+                    var percent = Math.Max(0, Math.Min(100, r.StageProgress * 100));
+                    GenerationProgressBar.Value = percent;
+                    var overall = Math.Max(0, Math.Min(100, r.Overall * 100));
+                    GenerationOverallProgressBar.Value = overall;
+                    StatusText.Text = r.Stage != null ? $"{r.Stage}: {percent:0}%" : $"Futtatás… {percent:0}%";
+                });
+
+                var scheduleList = await System.Threading.Tasks.Task.Run(() => scheduleService.GenerateSchedule(progress));
                 var schedule = scheduleList.Count > 0 ? scheduleList[0] : null;
 
+                // mark generation as complete
+                GenerationOverallProgressBar.Value = 100;
                 RefreshScheduleGrid(schedule);
 
                 var outputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "schedule_output.txt");
@@ -146,6 +162,13 @@ namespace TimetablePlanner.UI
             {
                 StatusText.Text = "Hiba.";
                 MessageBox.Show(ex.Message, "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                GenerationProgressBar.Visibility = Visibility.Collapsed;
+                GenerationProgressBar.Value = 0;
+                GenerationOverallProgressBar.Visibility = Visibility.Collapsed;
+                GenerationOverallProgressBar.Value = 0;
             }
         }
 

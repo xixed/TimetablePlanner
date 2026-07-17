@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using TimetablePlanner.Core.Interfaces.Constraint;
 using TimetablePlanner.Core.Models;
 
@@ -33,15 +34,46 @@ namespace TimetablePlanner.Core.Generators
             Schedule initialSchedule,
             int maxIterations = 20_000,
             double initialTemperature = 5.0,
-            double coolingRate = 0.999)
+            double coolingRate = 0.999,
+            int parallelRuns = 0,
+            IProgress<TimetablePlanner.Core.Models.GenerationProgressReport>? progress = null)
         {
             if (initialSchedule == null) throw new ArgumentNullException(nameof(initialSchedule));
+            // Determine number of parallel runs
+            var runs = parallelRuns <= 0 ? Environment.ProcessorCount : parallelRuns;
 
+            // Launch independent workers and pick the best result
+            var tasks = new Task<Schedule>[runs];
+            for (var i = 0; i < runs; i++)
+            {
+                var seed = Environment.TickCount ^ (i * 397);
+                var idx = i;
+                tasks[idx] = Task.Run(() => OptimizeSingle(initialSchedule, maxIterations, initialTemperature, coolingRate, seed, idx, runs, progress));
+            }
+
+            Task.WaitAll(tasks);
+
+            Schedule best = null;
+            foreach (var t in tasks)
+            {
+                var s = t.Result;
+                if (s == null) continue;
+                if (best == null || s.TotalPenalty < best.TotalPenalty)
+                {
+                    best = s;
+                }
+            }
+
+            return best ?? CloneSchedule(initialSchedule);
+        }
+
+        private Schedule OptimizeSingle(Schedule initialSchedule, int maxIterations, double initialTemperature, double coolingRate, int seed, int workerIndex, int totalWorkers, IProgress<TimetablePlanner.Core.Models.GenerationProgressReport>? progress)
+        {
             var bestSchedule = CloneSchedule(initialSchedule);
             bestSchedule.TotalPenalty = ComputeTotalPenalty(bestSchedule);
 
             var current = CloneSchedule(bestSchedule);
-            var random = new Random();
+            var random = new Random(seed);
             var temperature = initialTemperature;
 
             for (var iter = 0; iter < maxIterations; iter++)
@@ -56,15 +88,32 @@ namespace TimetablePlanner.Core.Generators
                     break;
                 }
 
-                // Véletlenszerűen választunk egy órát, majd kipróbálunk neki egy új (TimeSlot, Room) kombinációt.
+                // Report progress occasionally (aggregate across workers)
+                if (progress != null && iter % 100 == 0)
+                {
+                    var workerFraction = (double)iter / Math.Max(1, maxIterations);
+                    var overall = ((double)workerIndex + workerFraction) / Math.Max(1, totalWorkers);
+                    try
+                    {
+                        progress.Report(new TimetablePlanner.Core.Models.GenerationProgressReport
+                        {
+                            Overall = 0.3 + overall * 0.6, // map worker progress into MAXSAT portion [0.3..0.9]
+                            Stage = "MAXSAT",
+                            StageProgress = workerFraction
+                        });
+                    }
+                    catch
+                    {
+                        // ignore progress failures
+                    }
+                }
+
                 var lessonIndex = random.Next(current.Lessons.Count);
                 var lesson = current.Lessons[lessonIndex];
 
                 var originalSlot = lesson.AssignedTimeSlot;
                 var originalRoom = lesson.AssignedRoom;
 
-                // Ne lépjünk ki a lessonRequirement által engedélyezett (PossibleTimeSlots, SuitableRooms)
-                // halmazból: így megőrizzük azt a logikát, amit a Greedy generator is betart.
                 var candidateSlots = lesson.Requirement?.PossibleTimeSlots?.Count > 0
                     ? lesson.Requirement.PossibleTimeSlots
                     : _timeSlots;
@@ -78,7 +127,6 @@ namespace TimetablePlanner.Core.Generators
                     continue;
                 }
 
-                // Egyetlen random szomszédot próbálunk, és SA-szerűen döntünk róla.
                 var slotCandidate = candidateSlots[random.Next(candidateSlots.Count)];
                 var roomCandidate = candidateRooms[random.Next(candidateRooms.Count)];
 
@@ -89,19 +137,15 @@ namespace TimetablePlanner.Core.Generators
 
                 if (!AllHardConstraintsSatisfied(current, lesson))
                 {
-                    // Hard-constraint sérül: vissza, és következő iteráció
                     lesson.AssignedTimeSlot = originalSlot;
                     lesson.AssignedRoom = originalRoom;
                     temperature *= coolingRate;
                     continue;
                 }
 
-                // A változás mértéke (delta) az új és régi penalty különbsége.
                 var newPenalty = ComputeTotalPenalty(current);
                 var delta = newPenalty - oldPenalty;
 
-                // Ha jobb (kisebb penalty), mindig elfogadjuk.
-                // Ha rosszabb, egyre csökkenő valószínűséggel fogadjuk el (lokális minimumokból kimászás).
                 if (delta <= 0)
                 {
                     if (newPenalty < bestSchedule.TotalPenalty)
@@ -115,7 +159,6 @@ namespace TimetablePlanner.Core.Generators
                     var acceptanceProb = Math.Exp(-delta / Math.Max(temperature, 1e-6));
                     if (random.NextDouble() > acceptanceProb)
                     {
-                        // elutasítjuk a rosszabb megoldást: visszaállítjuk az eredeti állapotot
                         lesson.AssignedTimeSlot = originalSlot;
                         lesson.AssignedRoom = originalRoom;
                     }

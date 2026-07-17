@@ -23,6 +23,11 @@ namespace TimetablePlanner.Core.Services
 
         public List<Schedule> GenerateSchedule()
         {
+            return GenerateSchedule(null);
+        }
+
+        public List<Schedule> GenerateSchedule(IProgress<TimetablePlanner.Core.Models.GenerationProgressReport>? progress = null)
+        {
             var requirements = _repository.GetLessonRequirements();
 
             var lessonsGenerator = new LessonsGenerator();
@@ -47,8 +52,9 @@ namespace TimetablePlanner.Core.Services
             };
 
             var generator = new Generators.GreedyGenerator(hardConstraints, softConstraints, lessonsGenerator);
-            
+
             // 1) Gyors inicializálás Greedy-vel (ez garantálja a kezdeti hard constraint-megfelelést).
+            progress?.Report(new TimetablePlanner.Core.Models.GenerationProgressReport { Overall = 0.05, Stage = "Import", StageProgress = 1.0 });
             var initialSchedule = generator.Generate(requirements);
 
             // 2) MAX-SAT jellegű finomhangolás: hard constraint-eket megtartjuk, soft constraint-eket minimalizáljuk.
@@ -58,7 +64,14 @@ namespace TimetablePlanner.Core.Services
                 _repository.GetTimeSlots(),
                 _repository.GetRooms());
 
-            var optimizedSchedule = maxsat.Optimize(initialSchedule, maxIterations: 8_000);
+            // Wrap the MAXSAT progress (double p -> GenerationProgressReport)
+            IProgress<TimetablePlanner.Core.Models.GenerationProgressReport>? wrapped = null;
+            if (progress != null)
+            {
+                wrapped = new Progress<TimetablePlanner.Core.Models.GenerationProgressReport>(r => progress.Report(r));
+            }
+
+            var optimizedSchedule = maxsat.Optimize(initialSchedule, maxIterations: 8_000, progress: wrapped);
             
             // Score-ot konzisztensen számolunk a soft constraint-ek alapján.
             // (Greedy a rész-ütemezés során kalkulálhat, ezért érdemes újraszámolni a teljes végső schedule-re.)
@@ -69,6 +82,7 @@ namespace TimetablePlanner.Core.Services
             optimizedSchedule.TotalPenalty = optimizedScore;
 
             var finalSchedule = optimizedScore <= initialScore ? optimizedSchedule : initialSchedule;
+            progress?.Report(new TimetablePlanner.Core.Models.GenerationProgressReport { Overall = 1.0, Stage = "Complete", StageProgress = 1.0 });
             return new List<Schedule> { finalSchedule };
 
 

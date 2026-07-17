@@ -118,15 +118,32 @@
                             Click="BtnView_Click"/>
                 </WrapPanel>
 
-                <TextBlock x:Name="StatusText"
-                           Grid.Column="2"
-                           Text="Kész."
-                           VerticalAlignment="Center"
-                           TextAlignment="Right"
-                           TextWrapping="Wrap"
-                           MaxWidth="320"
-                           Foreground="#CBD5E1"
-                           FontSize="13"/>
+                <StackPanel Grid.Column="2" Orientation="Vertical" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock x:Name="StatusText"
+                               Text="Kész."
+                               TextAlignment="Right"
+                               TextWrapping="Wrap"
+                               MaxWidth="320"
+                               Foreground="#CBD5E1"
+                               FontSize="13"/>
+                    <ProgressBar x:Name="GenerationOverallProgressBar"
+                                 Width="240"
+                                 Height="8"
+                                 Minimum="0"
+                                 Maximum="100"
+                                 Value="0"
+                                 Visibility="Collapsed"
+                                 Margin="0,6,0,0"
+                                 Foreground="#2563EB"/>
+                    <ProgressBar x:Name="GenerationProgressBar"
+                                 Width="240"
+                                 Height="14"
+                                 Minimum="0"
+                                 Maximum="100"
+                                 Value="0"
+                                 Visibility="Collapsed"
+                                 Margin="0,6,0,0"/>
+                </StackPanel>
             </Grid>
         </Border>
 
