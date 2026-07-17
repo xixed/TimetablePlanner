@@ -10,5 +10,6 @@ namespace TimetablePlanner.Core.Interfaces
     public interface IScheduleGenerationService
     {
         List<Schedule> GenerateSchedule();
+        List<Schedule> GenerateSchedule(IProgress<TimetablePlanner.Core.Models.GenerationProgressReport>? progress = null);
     }
 }
