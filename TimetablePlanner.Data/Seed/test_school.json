@@ -825,7 +825,7 @@
     {
       "id": 1,
       "subjectId": 1,
-      "teacherId": 24,
+      "teacherId": 13,
       "classGroupId": 1,
       "weeklyHours": 4,
       "suitableRoomIds": [
@@ -1599,7 +1599,7 @@
     {
       "id": 10,
       "subjectId": 2,
-      "teacherId": 24,
+      "teacherId": 13,
       "classGroupId": 3,
       "weeklyHours": 4,
       "suitableRoomIds": [
@@ -1771,7 +1771,7 @@
     {
       "id": 12,
       "subjectId": 11,
-      "teacherId": 19,
+      "teacherId": 20,
       "classGroupId": 3,
       "weeklyHours": 3,
       "suitableRoomIds": [
@@ -3061,7 +3061,7 @@
     {
       "id": 27,
       "subjectId": 11,
-      "teacherId": 18,
+      "teacherId": 30,
       "classGroupId": 5,
       "weeklyHours": 5,
       "suitableRoomIds": [
@@ -3319,7 +3319,7 @@
     {
       "id": 30,
       "subjectId": 2,
-      "teacherId": 24,
+      "teacherId": 4,
       "classGroupId": 6,
       "weeklyHours": 3,
       "suitableRoomIds": [
@@ -3921,7 +3921,7 @@
     {
       "id": 37,
       "subjectId": 9,
-      "teacherId": 27,
+      "teacherId": 15,
       "classGroupId": 6,
       "weeklyHours": 3,
       "suitableRoomIds": [
@@ -4007,7 +4007,7 @@
     {
       "id": 38,
       "subjectId": 10,
-      "teacherId": 5,
+      "teacherId": 17,
       "classGroupId": 6,
       "weeklyHours": 2,
       "suitableRoomIds": [
@@ -4093,7 +4093,7 @@
     {
       "id": 39,
       "subjectId": 11,
-      "teacherId": 20,
+      "teacherId": 19,
       "classGroupId": 6,
       "weeklyHours": 5,
       "suitableRoomIds": [
@@ -4866,8 +4866,8 @@
     },
     {
       "id": 48,
-      "subjectId": 8,
-      "teacherId": 13,
+      "subjectId": 11,
+      "teacherId": 20,
       "classGroupId": 7,
       "weeklyHours": 3,
       "suitableRoomIds": [
@@ -5813,7 +5813,7 @@
     {
       "id": 59,
       "subjectId": 5,
-      "teacherId": 25,
+      "teacherId": 10,
       "classGroupId": 8,
       "weeklyHours": 3,
       "suitableRoomIds": [
@@ -7705,7 +7705,7 @@
     {
       "id": 81,
       "subjectId": 8,
-      "teacherId": 27,
+      "teacherId": 13,
       "classGroupId": 9,
       "weeklyHours": 3,
       "suitableRoomIds": [
@@ -7791,7 +7791,7 @@
     {
       "id": 82,
       "subjectId": 9,
-      "teacherId": 27,
+      "teacherId": 15,
       "classGroupId": 9,
       "weeklyHours": 3,
       "suitableRoomIds": [
@@ -8737,9 +8737,9 @@
     {
       "id": 93,
       "subjectId": 3,
-      "teacherId": 7,
+      "teacherId": 29,
       "classGroupId": 10,
-      "weeklyHours": 2,
+      "weeklyHours": 3,
       "suitableRoomIds": [
         1,
         2,
@@ -9425,7 +9425,7 @@
     {
       "id": 101,
       "subjectId": 9,
-      "teacherId": 27,
+      "teacherId": 15,
       "classGroupId": 10,
       "weeklyHours": 3,
       "suitableRoomIds": [
@@ -9855,7 +9855,7 @@
     {
       "id": 106,
       "subjectId": 10,
-      "teacherId": 17,
+      "teacherId": 5,
       "classGroupId": 10,
       "weeklyHours": 1,
       "suitableRoomIds": [
@@ -10457,7 +10457,7 @@
     {
       "id": 113,
       "subjectId": 8,
-      "teacherId": 27,
+      "teacherId": 13,
       "classGroupId": 11,
       "weeklyHours": 4,
       "suitableRoomIds": [
@@ -10543,7 +10543,7 @@
     {
       "id": 114,
       "subjectId": 9,
-      "teacherId": 27,
+      "teacherId": 15,
       "classGroupId": 11,
       "weeklyHours": 3,
       "suitableRoomIds": [
@@ -11231,7 +11231,7 @@
     {
       "id": 122,
       "subjectId": 8,
-      "teacherId": 27,
+      "teacherId": 13,
       "classGroupId": 12,
       "weeklyHours": 4,
       "suitableRoomIds": [
@@ -13123,7 +13123,7 @@
     {
       "id": 144,
       "subjectId": 1,
-      "teacherId": 29,
+      "teacherId": 3,
       "classGroupId": 15,
       "weeklyHours": 4,
       "suitableRoomIds": [

@@ -152,7 +152,7 @@ namespace TimetablePlanner.UI
                 RefreshScheduleGrid(schedule);
 
                 var outputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "schedule_output.txt");
-                WriteScheduleTextFile(schedule, outputPath);
+                WriteScheduleTextFile(scheduleList, outputPath);
 
                 StatusText.Text = schedule?.Lessons.Count > 0
                     ? $"Kész. {schedule.Lessons.Count} óra ütemezve. Kimenet: schedule_output.txt"
@@ -216,15 +216,17 @@ namespace TimetablePlanner.UI
             }
         }
 
-        private static void WriteScheduleTextFile(Schedule? schedule, string outputPath)
+        private static void WriteScheduleTextFile(IReadOnlyList<Schedule> schedules, string outputPath)
         {
             using var writer = new StreamWriter(outputPath);
+            var schedule = schedules.Count > 0 ? schedules[0] : null;
             if (schedule == null)
             {
                 writer.WriteLine("(nincs ütemezés)");
                 return;
             }
 
+            // Csak a legjobb órarend részletei kerülnek a kimenetbe.
             foreach (var lesson in schedule.Lessons)
             {
                 writer.WriteLine(
@@ -238,6 +240,16 @@ namespace TimetablePlanner.UI
             }
 
             writer.WriteLine($"Total Penalty: {schedule.TotalPenalty}");
+
+            // Összehasonlítás: minden generátor eredménye.
+            writer.WriteLine();
+            writer.WriteLine("Generator comparison:");
+            foreach (var s in schedules)
+            {
+                var marker = ReferenceEquals(s, schedule) ? " (selected)" : string.Empty;
+                writer.WriteLine(
+                    $"  {s.GeneratorName ?? "?"}: Total Penalty = {s.TotalPenalty}, Unscheduled = {s.UnScheduledLessons.Count}{marker}");
+            }
         }
 
         private void RefreshScheduleGrid(Schedule? schedule)

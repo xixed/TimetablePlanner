@@ -15,6 +15,11 @@ namespace TimetablePlanner.Core.Models
 
         public int TotalPenalty { get; set; } = 0;
 
+        /// <summary>
+        /// A generátor neve, amely az órarendet készítette (pl. "Greedy", "CP-SAT").
+        /// </summary>
+        public string? GeneratorName { get; set; }
+
         public Schedule() { }
 
         public void AddLesson(Lesson lesson)

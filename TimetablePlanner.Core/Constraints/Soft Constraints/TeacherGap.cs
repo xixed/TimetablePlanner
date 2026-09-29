@@ -10,6 +10,8 @@ namespace TimetablePlanner.Core.Constraints.Soft_Constraints
 {
     public class TeacherGap : ISoftConstraint
     {
+        private const int PenaltyPerGap = 10;
+
         public string Name => "Teacher gap minimization";
 
         public int GetPenalty(Schedule schedule, Lesson candidate)
@@ -17,48 +19,27 @@ namespace TimetablePlanner.Core.Constraints.Soft_Constraints
             if (candidate.AssignedTimeSlot == null || candidate.Teacher == null)
                 return 0;
 
-            var teacherLessons = schedule.Lessons
+            var before = schedule.Lessons
                 .Where(l =>
+                    !ReferenceEquals(l, candidate) &&
                     l.Teacher != null &&
                     l.AssignedTimeSlot != null &&
-                    l.Teacher.Id == candidate.Teacher.Id)
-                .ToList();
-
-            var sameDayPeriods = teacherLessons
-                .Where(l => l.AssignedTimeSlot!.Day == candidate.AssignedTimeSlot.Day)
+                    l.Teacher.Id == candidate.Teacher.Id &&
+                    l.AssignedTimeSlot.Day == candidate.AssignedTimeSlot.Day)
                 .Select(l => l.AssignedTimeSlot!.Period)
-                .Append(candidate.AssignedTimeSlot.Period)
-                .Distinct()
-                .OrderBy(p => p)
                 .ToList();
 
-            if (sameDayPeriods.Count <= 2)
-                return 0;
+            var after = before.Append(candidate.AssignedTimeSlot.Period);
 
-            int gaps = CountInternalGaps(sameDayPeriods);
-
-            
-            return gaps * 10;
+            return (GapHelper.CountInternalGaps(after) - GapHelper.CountInternalGaps(before)) * PenaltyPerGap;
         }
 
-        private static int CountInternalGaps(List<int> orderedPeriods)
+        public int GetTotalPenalty(Schedule schedule)
         {
-            if (orderedPeriods.Count <= 1)
-                return 0;
-
-            int gaps = 0;
-
-            for (int i = 1; i < orderedPeriods.Count; i++)
-            {
-                int diff = orderedPeriods[i] - orderedPeriods[i - 1];
-                if (diff > 1)
-                {
-                    gaps += diff - 1;
-                }
-            }
-
-            return gaps;
+            return schedule.Lessons
+                .Where(l => l.Teacher != null && l.AssignedTimeSlot != null)
+                .GroupBy(l => (l.Teacher.Id, l.AssignedTimeSlot!.Day))
+                .Sum(g => GapHelper.CountInternalGaps(g.Select(l => l.AssignedTimeSlot!.Period)) * PenaltyPerGap);
         }
-
     }
 }

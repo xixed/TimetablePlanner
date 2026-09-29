@@ -13,7 +13,7 @@ namespace TimetablePlanner.Core.Models
         public double StageProgress { get; set; }
 
         /// <summary>
-        /// Current stage name (e.g., "Import", "Greedy", "MAXSAT")
+        /// Current stage name (e.g., "Import", "Greedy", "Szimulált hûtés")
         /// </summary>
         public string? Stage { get; set; }
     }

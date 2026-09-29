@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Linq;
 using TimetablePlanner.Core.Interfaces.Constraint;
 using TimetablePlanner.Core.Models;
 
@@ -10,6 +6,8 @@ namespace TimetablePlanner.Core.Constraints.Soft_Constraints
 {
     public class TeacherOneLessonAvoidance : ISoftConstraint
     {
+        private const int Penalty = 20;
+
         public string Name => "Teacher one lesson day avoidance";
 
         public int GetPenalty(Schedule schedule, Lesson candidate)
@@ -17,22 +15,22 @@ namespace TimetablePlanner.Core.Constraints.Soft_Constraints
             if (candidate.AssignedTimeSlot == null || candidate.Teacher == null)
                 return 0;
 
-            var sameDayLessons = schedule.Lessons
-                .Where(l =>
-                    l.Teacher != null &&
-                    l.AssignedTimeSlot != null &&
-                    l.Teacher.Id == candidate.Teacher.Id &&
-                    l.AssignedTimeSlot.Day == candidate.AssignedTimeSlot.Day)
-                .ToList();
+            var hasOtherLessonThatDay = schedule.Lessons.Any(l =>
+                !ReferenceEquals(l, candidate) &&
+                l.Teacher != null &&
+                l.AssignedTimeSlot != null &&
+                l.Teacher.Id == candidate.Teacher.Id &&
+                l.AssignedTimeSlot.Day == candidate.AssignedTimeSlot.Day);
 
-            int dayLessonCountAfterPlacement = sameDayLessons.Count + 1;
+            return hasOtherLessonThatDay ? 0 : Penalty;
+        }
 
-
-            if (dayLessonCountAfterPlacement == 1)
-                return 20;
-
-
-            return 0;
+        public int GetTotalPenalty(Schedule schedule)
+        {
+            return schedule.Lessons
+                .Where(l => l.Teacher != null && l.AssignedTimeSlot != null)
+                .GroupBy(l => (l.Teacher.Id, l.AssignedTimeSlot!.Day))
+                .Count(g => g.Count() == 1) * Penalty;
         }
     }
 }

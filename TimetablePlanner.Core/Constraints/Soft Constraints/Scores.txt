@@ -1,6 +1,10 @@
-﻿DoubleLessonPreference = 8
+﻿DoubleLessonPreference = 8/lesson (preferált: 8 minden párosítatlan óra után; nem preferált: 8 minden szomszédos óra-pár után)
 LessonSplitOnSameDay = 1/gap
 TeacherGap = 10/gap
 ClassGap = 15/gap
 RoomStability = 5/room if > 1
 TeacherOneLessonAvoidance = 20
+UnscheduledLessonPenalty = 10000/lesson
+ClassDayStart = 10/period (a nap első óráját követő minden kezdési periódus)
+LateLesson = 5/period after period 8
+ClassDayBalance = 3/lesson difference between the busiest and lightest day

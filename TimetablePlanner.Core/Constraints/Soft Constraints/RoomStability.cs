@@ -32,10 +32,18 @@ namespace TimetablePlanner.Core.Constraints.Soft_Constraints
                 .Distinct()
                 .ToList();
 
-            
+                
             int extraRooms = distinctRoomIds.Count - 1;
 
             return extraRooms > 0 ? extraRooms * 5 : 0;
+        }
+
+        public int GetTotalPenalty(Schedule schedule)
+        {
+            return schedule.Lessons
+                .Where(l => l.ClassGroup != null && l.AssignedTimeSlot != null && l.AssignedRoom != null)
+                .GroupBy(l => (l.ClassGroup.Id, l.AssignedTimeSlot!.Day))
+                .Sum(g => (g.Select(l => l.AssignedRoom!.Id).Distinct().Count() - 1) * 5);
         }
     }
 }

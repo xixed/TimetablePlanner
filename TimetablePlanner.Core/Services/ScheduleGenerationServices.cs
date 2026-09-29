@@ -37,7 +37,8 @@ namespace TimetablePlanner.Core.Services
                 new Constraints.Hard_Constraints.ClassConflict(),
                 new Constraints.Hard_Constraints.TeacherConflict(),
                 new Constraints.Hard_Constraints.RoomConflict(),
-                new Constraints.Hard_Constraints.TeacherUnavailableTimeSlot()
+                new Constraints.Hard_Constraints.TeacherUnavailableTimeSlot(),
+                new Constraints.Hard_Constraints.RoomCapacity()
 
             };
 
@@ -48,59 +49,101 @@ namespace TimetablePlanner.Core.Services
                 new Constraints.Soft_Constraints.TeacherGap(),
                 new Constraints.Soft_Constraints.ClassGap(),
                 new Constraints.Soft_Constraints.RoomStability(),
-                new Constraints.Soft_Constraints.TeacherOneLessonAvoidance()
+                new Constraints.Soft_Constraints.TeacherOneLessonAvoidance(),
+                new Constraints.Soft_Constraints.ClassDayStart(),
+                new Constraints.Soft_Constraints.LateLesson(),
+                new Constraints.Soft_Constraints.UnscheduledLessonPenalty()
             };
 
             var generator = new Generators.GreedyGenerator(hardConstraints, softConstraints, lessonsGenerator);
 
-            // 1) Gyors inicializálás Greedy-vel (ez garantálja a kezdeti hard constraint-megfelelést).
-            progress?.Report(new TimetablePlanner.Core.Models.GenerationProgressReport { Overall = 0.05, Stage = "Import", StageProgress = 1.0 });
-            var initialSchedule = generator.Generate(requirements);
+            // 1) Greedy: gyors, lehetséges megoldás, amely referenciaként szolgál.
+            progress?.Report(new GenerationProgressReport { Overall = 0.05, Stage = "Greedy", StageProgress = 0.0 });
+            var greedySchedule = generator.Generate(requirements);
+            greedySchedule.GeneratorName = "Greedy";
+            var greedyScore = SumSoftPenalty(greedySchedule, softConstraints);
+            greedySchedule.TotalPenalty = greedyScore;
+            progress?.Report(new GenerationProgressReport { Overall = 0.3, Stage = "Greedy", StageProgress = 1.0 });
 
-            // 2) MAX-SAT jellegű finomhangolás: hard constraint-eket megtartjuk, soft constraint-eket minimalizáljuk.
-            var maxsat = new MAXSAT(
+            // 2) Szimulált hűtés: saját kezdőmegoldásból indul, a greedy eredményét csak összehasonlításra kapja.
+            //    Ha láthatóan nem tud jobbat adni a greedy-nél, idő előtt leáll.
+            var optimizer = new SimulatedAnnealingOptimizer(
                 hardConstraints,
                 softConstraints,
                 _repository.GetTimeSlots(),
                 _repository.GetRooms());
 
-            // Wrap the MAXSAT progress (double p -> GenerationProgressReport)
-            IProgress<TimetablePlanner.Core.Models.GenerationProgressReport>? wrapped = null;
+            IProgress<GenerationProgressReport>? wrapped = null;
             if (progress != null)
             {
-                wrapped = new Progress<TimetablePlanner.Core.Models.GenerationProgressReport>(r => progress.Report(r));
+                wrapped = new Progress<GenerationProgressReport>(r => progress.Report(r));
             }
 
-            var optimizedSchedule = maxsat.Optimize(initialSchedule, maxIterations: 8_000, progress: wrapped);
-            
-            // Score-ot konzisztensen számolunk a soft constraint-ek alapján.
-            // (Greedy a rész-ütemezés során kalkulálhat, ezért érdemes újraszámolni a teljes végső schedule-re.)
-            var initialScore = SumSoftPenalty(initialSchedule, softConstraints);
-            var optimizedScore = SumSoftPenalty(optimizedSchedule, softConstraints);
+            var annealedSchedule = optimizer.Optimize(
+                requirements,
+                greedyScore,
+                greedySchedule.UnScheduledLessons.Count,
+                maxIterations: 100_000,
+                coolingRate: 0.9996,
+                progress: wrapped);
 
-            initialSchedule.TotalPenalty = initialScore;
-            optimizedSchedule.TotalPenalty = optimizedScore;
+            annealedSchedule.GeneratorName = "Szimulált hűtés";
+            annealedSchedule.TotalPenalty = SumSoftPenalty(annealedSchedule, softConstraints);
 
-            var finalSchedule = optimizedScore <= initialScore ? optimizedSchedule : initialSchedule;
-            progress?.Report(new TimetablePlanner.Core.Models.GenerationProgressReport { Overall = 1.0, Stage = "Complete", StageProgress = 1.0 });
-            return new List<Schedule> { finalSchedule };
+            // 3) CP-SAT: független modell, csak az eredményt hasonlítjuk össze a többivel.
+            Schedule? cpSatSchedule = null;
+            progress?.Report(new GenerationProgressReport { Overall = 0.7, Stage = "CP-SAT", StageProgress = 0.0 });
+            try
+            {
+                var cpSat = new CpSatGenerator(lessonsGenerator, timeLimitSeconds: 60);
+                var hintSchedule = IsBetter(annealedSchedule, greedySchedule) ? annealedSchedule : greedySchedule;
+                cpSatSchedule = cpSat.Generate(requirements, hintSchedule);
+                cpSatSchedule.GeneratorName = "CP-SAT (hint: " + hintSchedule.GeneratorName + ")";
+                cpSatSchedule.TotalPenalty = SumSoftPenalty(cpSatSchedule, softConstraints);
+            }
+            catch (Exception)
+            {
+                // A CP-SAT hibája ne akadályozza a többi generátor eredményét.
+                cpSatSchedule = null;
+            }
+            progress?.Report(new GenerationProgressReport { Overall = 0.95, Stage = "CP-SAT", StageProgress = 1.0 });
 
+            // Összehasonlítás: először a kevesebb be nem osztott óra, utána a kisebb büntetés.
+            var candidates = new List<Schedule> { greedySchedule, annealedSchedule };
+            if (cpSatSchedule != null)
+            {
+                candidates.Add(cpSatSchedule);
+            }
 
+            var finalSchedule = candidates.Aggregate((best, next) => IsBetter(next, best) ? next : best);
 
+            progress?.Report(new GenerationProgressReport { Overall = 1.0, Stage = "Complete", StageProgress = 1.0 });
+
+            // Az első elem a legjobb, utána a többi generátor eredménye összehasonlításhoz.
+            var result = new List<Schedule> { finalSchedule };
+            result.AddRange(candidates.Where(c => !ReferenceEquals(c, finalSchedule)));
+            return result;
         }
 
         private static int SumSoftPenalty(Schedule schedule, List<ISoftConstraint> softConstraints)
         {
             var total = 0;
-            foreach (var lesson in schedule.Lessons)
+            foreach (var sc in softConstraints)
             {
-                foreach (var sc in softConstraints)
-                {
-                    total += sc.GetPenalty(schedule, lesson);
-                }
+                total += sc.GetTotalPenalty(schedule);
             }
 
             return total;
+        }
+
+        private static bool IsBetter(Schedule candidate, Schedule current)
+        {
+            if (candidate.UnScheduledLessons.Count != current.UnScheduledLessons.Count)
+            {
+                return candidate.UnScheduledLessons.Count < current.UnScheduledLessons.Count;
+            }
+
+            return candidate.TotalPenalty < current.TotalPenalty;
         }
     }
 }
