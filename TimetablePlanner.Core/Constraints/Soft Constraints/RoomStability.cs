@@ -10,6 +10,8 @@ namespace TimetablePlanner.Core.Constraints.Soft_Constraints
 {
     public class RoomStability : ISoftConstraint
     {
+        public const int PenaltyPerExtraRoom = 5;
+
         public string Name => "Room stability";
 
         public int GetPenalty(Schedule schedule, Lesson candidate)
@@ -35,7 +37,7 @@ namespace TimetablePlanner.Core.Constraints.Soft_Constraints
                 
             int extraRooms = distinctRoomIds.Count - 1;
 
-            return extraRooms > 0 ? extraRooms * 5 : 0;
+            return extraRooms > 0 ? extraRooms * PenaltyPerExtraRoom : 0;
         }
 
         public int GetTotalPenalty(Schedule schedule)
@@ -43,7 +45,7 @@ namespace TimetablePlanner.Core.Constraints.Soft_Constraints
             return schedule.Lessons
                 .Where(l => l.ClassGroup != null && l.AssignedTimeSlot != null && l.AssignedRoom != null)
                 .GroupBy(l => (l.ClassGroup.Id, l.AssignedTimeSlot!.Day))
-                .Sum(g => (g.Select(l => l.AssignedRoom!.Id).Distinct().Count() - 1) * 5);
+                .Sum(g => (g.Select(l => l.AssignedRoom!.Id).Distinct().Count() - 1) * PenaltyPerExtraRoom);
         }
     }
 }

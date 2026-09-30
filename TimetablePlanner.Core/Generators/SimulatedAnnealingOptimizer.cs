@@ -34,16 +34,15 @@ namespace TimetablePlanner.Core.Generators
 
         /// <summary>
         /// Saját, véletlenszerű kezdőmegoldásból indulva minimalizálja a soft penalty összegét
-        /// (hard constraint-ek mindig teljesülnek). A greedy eredmény csak referencia:
-        /// ha egy worker a türelmi idő után sem javul, és még mindig nem jobb a referenciánál, leáll.
+        /// (hard constraint-ek mindig teljesülnek). A hőmérséklet a megadott időkeret (vagy az iterációszám)
+        /// előrehaladásával csökken geometrikusan, így a keresés végigfut a teljes kereten.
         /// </summary>
         public Schedule Optimize(
             List<LessonRequirement> requirements,
-            int referencePenalty,
-            int referenceUnscheduledCount,
-            int maxIterations = 100_000,
-            double initialTemperature = 5.0,
-            double coolingRate = 0.999,
+            TimeSpan timeLimit,
+            int maxIterations = 1_000_000,
+            double initialTemperature = 20.0,
+            double finalTemperature = 0.3,
             int parallelRuns = 0,
             IProgress<GenerationProgressReport>? progress = null)
         {
@@ -57,8 +56,8 @@ namespace TimetablePlanner.Core.Generators
                 var seed = Environment.TickCount ^ (i * 397);
                 var idx = i;
                 tasks[idx] = Task.Run(() => OptimizeSingle(
-                    requirements, referencePenalty, referenceUnscheduledCount,
-                    maxIterations, initialTemperature, coolingRate, seed, idx, runs, progress));
+                    requirements, timeLimit, maxIterations, initialTemperature, finalTemperature,
+                    seed, idx, runs, progress));
             }
 
             Task.WaitAll(tasks);
@@ -81,11 +80,10 @@ namespace TimetablePlanner.Core.Generators
 
         private Schedule OptimizeSingle(
             List<LessonRequirement> requirements,
-            int referencePenalty,
-            int referenceUnscheduledCount,
+            TimeSpan timeLimit,
             int maxIterations,
             double initialTemperature,
-            double coolingRate,
+            double finalTemperature,
             int seed,
             int workerIndex,
             int totalWorkers,
@@ -95,43 +93,93 @@ namespace TimetablePlanner.Core.Generators
 
             // Saját kezdőmegoldás (nem a greedy-é).
             var current = BuildRandomSchedule(requirements, random);
-            var bestSchedule = CloneSchedule(current);
-            bestSchedule.TotalPenalty = ComputeTotalPenalty(bestSchedule);
+            var lessons = current.Lessons.ToArray();
+            if (lessons.Length == 0)
+            {
+                return current;
+            }
 
-            var temperature = initialTemperature;
+            // Egy lépés csak a mozgatott óra osztályát és tanárát érinti, ezért csak azok óráit pontozzuk újra.
+            var byClass = new Dictionary<int, List<Lesson>>();
+            var byTeacher = new Dictionary<int, List<Lesson>>();
+            foreach (var l in lessons)
+            {
+                if (l.ClassGroup != null)
+                {
+                    AddTo(byClass, l.ClassGroup.Id, l);
+                }
+                if (l.Teacher != null)
+                {
+                    AddTo(byTeacher, l.Teacher.Id, l);
+                }
+            }
 
-            // Korai leállítás paraméterei
-            var minIterations = Math.Max(200, maxIterations / 10);
-            var patience = Math.Max(200, maxIterations / 4);
-            var lastImprovementIter = 0;
+            var affected = new HashSet<Lesson>(ReferenceEqualityComparer.Instance);
+
+            void Collect(Lesson l)
+            {
+                if (l.ClassGroup != null && byClass.TryGetValue(l.ClassGroup.Id, out var c))
+                {
+                    affected.UnionWith(c);
+                }
+                if (l.Teacher != null && byTeacher.TryGetValue(l.Teacher.Id, out var t))
+                {
+                    affected.UnionWith(t);
+                }
+            }
+
+            int LocalPenalty(Lesson a, Lesson? b)
+            {
+                affected.Clear();
+                Collect(a);
+                if (b != null)
+                {
+                    Collect(b);
+                }
+
+                return ComputeTotalPenalty(new Schedule { Lessons = affected.ToList() });
+            }
+
+            var currentPenalty = ComputeTotalPenalty(current);
+            var bestPenalty = currentPenalty;
+            var bestSlots = lessons.Select(l => l.AssignedTimeSlot).ToArray();
+            var bestRooms = lessons.Select(l => l.AssignedRoom).ToArray();
+
+            void SaveBest()
+            {
+                for (var i = 0; i < lessons.Length; i++)
+                {
+                    bestSlots[i] = lessons[i].AssignedTimeSlot;
+                    bestRooms[i] = lessons[i].AssignedRoom;
+                }
+            }
+
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var limitSeconds = Math.Max(0.001, timeLimit.TotalSeconds);
+            var coolingRatio = finalTemperature / initialTemperature;
 
             for (var iter = 0; iter < maxIterations; iter++)
             {
-                if (temperature < 1e-4 || current.Lessons.Count == 0)
+                // A keret előrehaladása: az iterációszám vagy az idő, amelyik előrébb tart.
+                var fraction = Math.Max((double)iter / maxIterations, stopwatch.Elapsed.TotalSeconds / limitSeconds);
+                if (fraction >= 1.0)
                 {
                     break;
                 }
 
-                // Ha már láthatóan nem tud jobb lenni a referenciánál, leállunk.
-                if (iter >= minIterations
-                    && iter - lastImprovementIter >= patience
-                    && !IsAtLeastAsGoodAs(bestSchedule, referencePenalty, referenceUnscheduledCount))
-                {
-                    break;
-                }
+                // Geometrikus hűtés a teljes kereten, a lépések kimenetelétől függetlenül.
+                var temperature = initialTemperature * Math.Pow(coolingRatio, fraction);
 
-                // Report progress occasionally (aggregate across workers)
                 if (progress != null && iter % 100 == 0)
                 {
-                    var workerFraction = (double)iter / Math.Max(1, maxIterations);
-                    var overall = ((double)workerIndex + workerFraction) / Math.Max(1, totalWorkers);
+                    var overall = ((double)workerIndex + fraction) / Math.Max(1, totalWorkers);
                     try
                     {
                         progress.Report(new GenerationProgressReport
                         {
-                            Overall = 0.3 + overall * 0.6, // a worker haladása a [0.3..0.9] sávba képezve
+                            Overall = 0.3 + overall * 0.2, // a worker haladása a [0.3..0.5] sávba képezve
                             Stage = "Szimulált hűtés",
-                            StageProgress = workerFraction
+                            StageProgress = fraction
                         });
                     }
                     catch
@@ -140,7 +188,7 @@ namespace TimetablePlanner.Core.Generators
                     }
                 }
 
-                var lesson = current.Lessons[random.Next(current.Lessons.Count)];
+                var lesson = lessons[random.Next(lessons.Length)];
 
                 var originalSlot = lesson.AssignedTimeSlot;
                 var originalRoom = lesson.AssignedRoom;
@@ -156,7 +204,13 @@ namespace TimetablePlanner.Core.Generators
                 var slotCandidate = candidateSlots[random.Next(candidateSlots.Count)];
                 var roomCandidate = candidateRooms[random.Next(candidateRooms.Count)];
 
-                var oldPenalty = ComputeTotalPenalty(current);
+                // Változatlan hely: nincs mit kiértékelni.
+                if (ReferenceEquals(slotCandidate, originalSlot) && ReferenceEquals(roomCandidate, originalRoom))
+                {
+                    continue;
+                }
+
+                var before = LocalPenalty(lesson, null);
 
                 lesson.AssignedTimeSlot = slotCandidate;
                 lesson.AssignedRoom = roomCandidate;
@@ -165,77 +219,93 @@ namespace TimetablePlanner.Core.Generators
                 {
                     lesson.AssignedTimeSlot = originalSlot;
                     lesson.AssignedRoom = originalRoom;
-                    temperature *= coolingRate;
                     continue;
                 }
 
-                var newPenalty = ComputeTotalPenalty(current);
-                var delta = newPenalty - oldPenalty;
+                var delta = LocalPenalty(lesson, null) - before;
 
-                if (delta <= 0)
+                if (delta <= 0 || random.NextDouble() <= Math.Exp(-delta / Math.Max(temperature, 1e-6)))
                 {
-                    if (newPenalty < bestSchedule.TotalPenalty)
+                    currentPenalty += delta;
+                    if (currentPenalty < bestPenalty)
                     {
-                        bestSchedule = CloneSchedule(current);
-                        bestSchedule.TotalPenalty = newPenalty;
-                        lastImprovementIter = iter;
+                        bestPenalty = currentPenalty;
+                        SaveBest();
                     }
                 }
                 else
                 {
-                    var acceptanceProb = Math.Exp(-delta / Math.Max(temperature, 1e-6));
-                    if (random.NextDouble() > acceptanceProb)
-                    {
-                        lesson.AssignedTimeSlot = originalSlot;
-                        lesson.AssignedRoom = originalRoom;
-                    }
+                    lesson.AssignedTimeSlot = originalSlot;
+                    lesson.AssignedRoom = originalRoom;
                 }
 
                 // Csere-lépés: két óra helyének felcserélése
-                if (current.Lessons.Count > 1 && random.NextDouble() < 0.3)
+                if (lessons.Length > 1 && random.NextDouble() < 0.3)
                 {
-                    var a = current.Lessons[random.Next(current.Lessons.Count)];
-                    var b = current.Lessons[random.Next(current.Lessons.Count)];
+                    var a = lessons[random.Next(lessons.Length)];
+                    var b = lessons[random.Next(lessons.Length)];
 
                     if (ReferenceEquals(a, b)
                         || !CanUse(a, b.AssignedTimeSlot, b.AssignedRoom)
                         || !CanUse(b, a.AssignedTimeSlot, a.AssignedRoom))
                     {
-                        temperature *= coolingRate;
                         continue;
                     }
 
-                    var swapOldPenalty = ComputeTotalPenalty(current);
+                    var swapBefore = LocalPenalty(a, b);
 
                     (a.AssignedTimeSlot, b.AssignedTimeSlot) = (b.AssignedTimeSlot, a.AssignedTimeSlot);
                     (a.AssignedRoom, b.AssignedRoom) = (b.AssignedRoom, a.AssignedRoom);
 
-                    var swapOk = AllHardConstraintsSatisfied(current, a, b);
-                    var swapNewPenalty = swapOk ? ComputeTotalPenalty(current) : int.MaxValue;
-                    var swapDelta = swapNewPenalty - swapOldPenalty;
-
-                    var accept = swapOk
-                        && (swapDelta <= 0
-                            || random.NextDouble() <= Math.Exp(-(double)swapDelta / Math.Max(temperature, 1e-6)));
+                    var accept = false;
+                    var swapDelta = 0;
+                    if (AllHardConstraintsSatisfied(current, a, b))
+                    {
+                        swapDelta = LocalPenalty(a, b) - swapBefore;
+                        accept = swapDelta <= 0
+                            || random.NextDouble() <= Math.Exp(-(double)swapDelta / Math.Max(temperature, 1e-6));
+                    }
 
                     if (!accept)
                     {
                         (a.AssignedTimeSlot, b.AssignedTimeSlot) = (b.AssignedTimeSlot, a.AssignedTimeSlot);
                         (a.AssignedRoom, b.AssignedRoom) = (b.AssignedRoom, a.AssignedRoom);
                     }
-                    else if (swapNewPenalty < bestSchedule.TotalPenalty)
+                    else
                     {
-                        bestSchedule = CloneSchedule(current);
-                        bestSchedule.TotalPenalty = swapNewPenalty;
-                        lastImprovementIter = iter;
+                        currentPenalty += swapDelta;
+                        if (currentPenalty < bestPenalty)
+                        {
+                            bestPenalty = currentPenalty;
+                            SaveBest();
+                        }
                     }
-
-                    temperature *= coolingRate;
-                    continue;
                 }
             }
 
-            return bestSchedule;
+            // Ha a növekményes számítás eltér a teljestől, valamelyik constraint nem bontható osztály/tanár szerint.
+            System.Diagnostics.Debug.Assert(
+                currentPenalty == ComputeTotalPenalty(current),
+                "A növekményes büntetés eltér a teljes újraszámolástól.");
+
+            // A legjobb állapot visszaállítása és pontos újraszámolás.
+            for (var i = 0; i < lessons.Length; i++)
+            {
+                lessons[i].AssignedTimeSlot = bestSlots[i];
+                lessons[i].AssignedRoom = bestRooms[i];
+            }
+
+            current.TotalPenalty = ComputeTotalPenalty(current);
+            return current;
+        }
+
+        private static void AddTo(Dictionary<int, List<Lesson>> map, int key, Lesson lesson)
+        {
+            if (!map.TryGetValue(key, out var list))
+            {
+                map[key] = list = new List<Lesson>();
+            }
+            list.Add(lesson);
         }
 
         private static bool IsAtLeastAsGoodAs(Schedule schedule, int referencePenalty, int referenceUnscheduledCount)

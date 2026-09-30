@@ -22,9 +22,12 @@ namespace TimetablePlanner.UI
     {
         private static readonly string[] HungarianDayShort =
             ["?", "H", "K", "Sze", "Cs", "P", "Szo", "Vas"];
+        private static readonly string[] HungarianDayLong =
+            ["?", "Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat", "Vasárnap"];
         private readonly Dictionary<string, (int Day, int Period)> _slotByColumn = new();
         private readonly Dictionary<(string ClassName, int Day, int Period), List<Lesson>> _lessonsByCell = new();
-        private bool _scheduleGridCompactView = true;
+        private readonly HashSet<string> _selectedClasses = new();
+        private Schedule? _currentSchedule;
 
         public MainWindow()
         {
@@ -75,20 +78,79 @@ namespace TimetablePlanner.UI
 
         private void BtnView_Click(object sender, RoutedEventArgs e)
         {
-            _scheduleGridCompactView = !_scheduleGridCompactView;
-            if (_scheduleGridCompactView)
+            if (_currentSchedule == null || _currentSchedule.Lessons.Count == 0)
             {
-                ScheduleGrid.FontSize = 14;
-                ScheduleGrid.RowHeight = 86;
-                ScheduleGrid.ColumnHeaderHeight = 44;
-                StatusText.Text = "Nézet: normál.";
+                MessageBox.Show("Még nincs órarend. Előbb futtasd a generálást.", "Nézet",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var classNames = _currentSchedule.Lessons
+                .Where(l => l.AssignedTimeSlot != null && l.ClassGroup != null)
+                .SelectMany(GetDisplayClassNames)
+                .Distinct()
+                .OrderBy(n => n)
+                .ToList();
+
+            var menu = new ContextMenu
+            {
+                PlacementTarget = BtnView,
+                Placement = PlacementMode.Bottom,
+                StaysOpen = false
+            };
+
+            var allItem = new MenuItem { Header = "Teljes órarend", FontWeight = FontWeights.SemiBold };
+            allItem.Click += (_, _) =>
+            {
+                _selectedClasses.Clear();
+                ApplyView();
+            };
+            menu.Items.Add(allItem);
+            menu.Items.Add(new Separator());
+
+            foreach (var name in classNames)
+            {
+                var item = new MenuItem
+                {
+                    Header = name,
+                    IsCheckable = true,
+                    IsChecked = _selectedClasses.Contains(name),
+                    StaysOpenOnClick = true
+                };
+                item.Click += (_, _) =>
+                {
+                    if (item.IsChecked)
+                    {
+                        _selectedClasses.Add(name);
+                    }
+                    else
+                    {
+                        _selectedClasses.Remove(name);
+                    }
+
+                    ApplyView();
+                };
+                menu.Items.Add(item);
+            }
+
+            menu.IsOpen = true;
+        }
+
+        private void ApplyView()
+        {
+            var showClasses = _selectedClasses.Count > 0 && _currentSchedule != null;
+            ClassViewScroll.Visibility = showClasses ? Visibility.Visible : Visibility.Collapsed;
+            ScheduleGrid.Visibility = showClasses ? Visibility.Collapsed : Visibility.Visible;
+
+            if (showClasses)
+            {
+                BuildClassView();
+                StatusText.Text = $"Nézet: {string.Join(", ", _selectedClasses.OrderBy(n => n))}";
             }
             else
             {
-                ScheduleGrid.FontSize = 17;
-                ScheduleGrid.RowHeight = 112;
-                ScheduleGrid.ColumnHeaderHeight = 52;
-                StatusText.Text = "Nézet: nagyított (távolabbról is olvasható).";
+                ClassViewPanel.Children.Clear();
+                StatusText.Text = "Nézet: teljes órarend.";
             }
         }
 
@@ -183,7 +245,7 @@ namespace TimetablePlanner.UI
                 using var context = new TimetableDbContext(options);
                 context.Database.EnsureDeleted();
                 context.Database.EnsureCreated();
-                ScheduleGrid.ItemsSource = null;
+                RefreshScheduleGrid(null);
                 StatusText.Text = "Adatbázis újraépítve (üres).";
                 MessageBox.Show("Az adatbázis törölve és újra létrehozva.", "Info",
                     MessageBoxButton.OK, MessageBoxImage.Information);
@@ -248,11 +310,19 @@ namespace TimetablePlanner.UI
             {
                 var marker = ReferenceEquals(s, schedule) ? " (selected)" : string.Empty;
                 writer.WriteLine(
-                    $"  {s.GeneratorName ?? "?"}: Total Penalty = {s.TotalPenalty}, Unscheduled = {s.UnScheduledLessons.Count}{marker}");
+                    $"  {s.GeneratorName ?? "?"}: Total Penalty = {s.TotalPenalty}, Unscheduled = {s.UnScheduledLessons.Count}, Time = {s.Duration.TotalSeconds:0.0}s{marker}");
             }
         }
 
         private void RefreshScheduleGrid(Schedule? schedule)
+        {
+            _currentSchedule = schedule;
+            _selectedClasses.Clear();
+            BuildOverviewGrid(schedule);
+            ApplyView();
+        }
+
+        private void BuildOverviewGrid(Schedule? schedule)
         {
             _slotByColumn.Clear();
             _lessonsByCell.Clear();
@@ -479,6 +549,171 @@ namespace TimetablePlanner.UI
         {
             var d = day >= 0 && day < HungarianDayShort.Length ? HungarianDayShort[day] : $"N{day}";
             return $"{d} · {period}. óra";
+        }
+
+        private void BuildClassView()
+        {
+            ClassViewPanel.Children.Clear();
+            if (_currentSchedule == null)
+            {
+                return;
+            }
+
+            var lessons = _currentSchedule.Lessons
+                .Where(l => l.AssignedTimeSlot != null && l.ClassGroup != null && l.Subject != null && l.Teacher != null)
+                .ToList();
+
+            var days = lessons.Select(l => l.AssignedTimeSlot!.Day).Distinct().OrderBy(x => x).ToList();
+            var periods = lessons.Select(l => l.AssignedTimeSlot!.Period).Distinct().OrderBy(x => x).ToList();
+
+            foreach (var className in _selectedClasses.OrderBy(n => n))
+            {
+                var classLessons = lessons.Where(l => GetDisplayClassNames(l).Contains(className)).ToList();
+                ClassViewPanel.Children.Add(BuildClassCard(className, classLessons, days, periods));
+            }
+        }
+
+        private static UIElement BuildClassCard(string className, List<Lesson> lessons, List<int> days, List<int> periods)
+        {
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+            foreach (var _ in days)
+            {
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 150 });
+            }
+
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            foreach (var _ in periods)
+            {
+                grid.RowDefinitions.Add(new RowDefinition { MinHeight = 84 });
+            }
+
+            var headerBrush = new SolidColorBrush(Color.FromRgb(0x1E, 0x29, 0x3B));
+            var periodBrush = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0));
+
+            AddCell(grid, 0, 0, HeaderText("Óra", Brushes.White), headerBrush);
+            for (var c = 0; c < days.Count; c++)
+            {
+                var dayName = days[c] >= 0 && days[c] < HungarianDayLong.Length ? HungarianDayLong[days[c]] : $"Nap {days[c]}";
+                AddCell(grid, 0, c + 1, HeaderText(dayName, Brushes.White), headerBrush);
+            }
+
+            for (var r = 0; r < periods.Count; r++)
+            {
+                AddCell(grid, r + 1, 0, HeaderText($"{periods[r]}. óra", Brushes.Black), periodBrush);
+
+                for (var c = 0; c < days.Count; c++)
+                {
+                    var cellLessons = lessons
+                        .Where(l => l.AssignedTimeSlot!.Day == days[c] && l.AssignedTimeSlot.Period == periods[r])
+                        .GroupBy(l => l.Id)
+                        .Select(g => g.First())
+                        .ToList();
+
+                    var panel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                    foreach (var lesson in cellLessons)
+                    {
+                        panel.Children.Add(new TextBlock
+                        {
+                            Text = lesson.Subject.Name,
+                            FontWeight = FontWeights.Bold,
+                            FontSize = 15,
+                            TextWrapping = TextWrapping.Wrap,
+                            Foreground = Brushes.Black,
+                            Margin = new Thickness(0, 0, 0, 2)
+                        });
+                        panel.Children.Add(new TextBlock
+                        {
+                            Text = $"{lesson.Teacher.Name} · {lesson.AssignedRoom?.Name ?? "—"}",
+                            FontSize = 12,
+                            TextWrapping = TextWrapping.Wrap,
+                            Foreground = new SolidColorBrush(Color.FromRgb(0x33, 0x41, 0x55)),
+                            Margin = new Thickness(0, 0, 0, 6)
+                        });
+                    }
+
+                    Brush background = cellLessons.Count == 0
+                        ? Brushes.White
+                        : new SolidColorBrush(SubjectColor(cellLessons[0].Subject.Name));
+
+                    AddCell(grid, r + 1, c + 1, panel, background);
+                }
+            }
+
+            var title = new TextBlock
+            {
+                Text = className,
+                FontSize = 22,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x0F, 0x17, 0x2A)),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+
+            var container = new StackPanel();
+            container.Children.Add(title);
+            container.Children.Add(grid);
+
+            return new Border
+            {
+                Child = container,
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xCB, 0xD5, 0xE1)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(12),
+                Margin = new Thickness(0, 0, 0, 16)
+            };
+        }
+
+        private static TextBlock HeaderText(string text, Brush foreground) => new()
+        {
+            Text = text,
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 14,
+            Foreground = foreground,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        private static void AddCell(Grid grid, int row, int column, UIElement content, Brush background)
+        {
+            var border = new Border
+            {
+                Child = content,
+                Background = background,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xCB, 0xD5, 0xE1)),
+                BorderThickness = new Thickness(0.5),
+                Padding = new Thickness(8, 6, 8, 6)
+            };
+            Grid.SetRow(border, row);
+            Grid.SetColumn(border, column);
+            grid.Children.Add(border);
+        }
+
+        // Stabil (futásonként azonos) pasztell szín a tantárgy nevéből.
+        private static Color SubjectColor(string name)
+        {
+            var hash = 17;
+            foreach (var ch in name)
+            {
+                hash = unchecked(hash * 31 + ch);
+            }
+
+            var hue = Math.Abs(hash % 360);
+            const double s = 0.45, v = 0.97;
+            var c = v * s;
+            var x = c * (1 - Math.Abs(hue / 60.0 % 2 - 1));
+            var m = v - c;
+            var (r, g, b) = hue switch
+            {
+                < 60 => (c, x, 0d),
+                < 120 => (x, c, 0d),
+                < 180 => (0d, c, x),
+                < 240 => (0d, x, c),
+                < 300 => (x, 0d, c),
+                _ => (c, 0d, x)
+            };
+            return Color.FromRgb((byte)((r + m) * 255), (byte)((g + m) * 255), (byte)((b + m) * 255));
         }
     }
 }

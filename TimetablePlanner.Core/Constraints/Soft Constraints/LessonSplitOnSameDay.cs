@@ -10,6 +10,8 @@ namespace TimetablePlanner.Core.Constraints.Soft_Constraints
 {
     public class LessonSplitOnSameDay : ISoftConstraint
     {
+        public const int PenaltyPerBreak = 1;
+
         public string Name => "Lesson split on same day";
 
         public int GetPenalty(Schedule schedule, Lesson candidate)
@@ -24,22 +26,32 @@ namespace TimetablePlanner.Core.Constraints.Soft_Constraints
                     l.AssignedTimeSlot != null &&
                     l.AssignedTimeSlot.Day == candidate.AssignedTimeSlot.Day)
                 .Select(l => l.AssignedTimeSlot!.Period)
-                .Append(candidate.AssignedTimeSlot.Period)
-                .Distinct()
-                .OrderBy(p => p)
-                .ToList();
+                .Append(candidate.AssignedTimeSlot.Period);
 
-            if (sameSubjectSameGroupSameDay.Count <= 1)
-                return 0;
+            return CountBreaks(sameSubjectSameGroupSameDay) * PenaltyPerBreak;
+        }
 
-            int gaps = 0;
-            for (int i = 1; i < sameSubjectSameGroupSameDay.Count; i++)
+        public int GetTotalPenalty(Schedule schedule)
+        {
+            return schedule.Lessons
+                .Where(l => l.ClassGroup != null && l.Subject != null && l.AssignedTimeSlot != null)
+                .GroupBy(l => (ClassId: l.ClassGroup.Id, SubjectId: l.Subject.Id, l.AssignedTimeSlot!.Day))
+                .Sum(g => CountBreaks(g.Select(l => l.AssignedTimeSlot!.Period)) * PenaltyPerBreak);
+        }
+
+        // Number of interruptions between the distinct periods (one per break, regardless of its length).
+        private static int CountBreaks(IEnumerable<int> periods)
+        {
+            var ordered = periods.Distinct().OrderBy(p => p).ToList();
+            var breaks = 0;
+
+            for (var i = 1; i < ordered.Count; i++)
             {
-                if (sameSubjectSameGroupSameDay[i] - sameSubjectSameGroupSameDay[i - 1] > 1)
-                    gaps++;
+                if (ordered[i] - ordered[i - 1] > 1)
+                    breaks++;
             }
 
-            return gaps;
+            return breaks;
         }
     }
 }

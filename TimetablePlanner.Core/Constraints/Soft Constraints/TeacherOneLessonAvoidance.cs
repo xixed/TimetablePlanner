@@ -6,7 +6,7 @@ namespace TimetablePlanner.Core.Constraints.Soft_Constraints
 {
     public class TeacherOneLessonAvoidance : ISoftConstraint
     {
-        private const int Penalty = 20;
+        public const int Penalty = 20;
 
         public string Name => "Teacher one lesson day avoidance";
 

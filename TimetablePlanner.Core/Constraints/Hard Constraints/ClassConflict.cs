@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Linq;
 using TimetablePlanner.Core.Interfaces.Constraint;
 using TimetablePlanner.Core.Models;
 
@@ -21,44 +17,36 @@ namespace TimetablePlanner.Core.Constraints.Hard_Constraints
 
             foreach (var existingLesson in schedule.Lessons)
             {
-                if (existingLesson.ClassGroup.Id != lesson.ClassGroup.Id)
+                if (existingLesson.AssignedTimeSlot == null
+                    || existingLesson.AssignedTimeSlot.Day != lesson.AssignedTimeSlot.Day
+                    || existingLesson.AssignedTimeSlot.Period != lesson.AssignedTimeSlot.Period)
                 {
                     continue;
                 }
 
-                if (existingLesson.AssignedTimeSlot == null)
-                {
-                    continue;
-                }
-
-                bool sameGroup = existingLesson.ClassGroup.Id == lesson.ClassGroup.Id;
-                if (!sameGroup)
-                {
-                    if (existingLesson.ClassGroup is Group existingGroup && lesson.ClassGroup is Class lessonClass)
-                    {
-                        sameGroup = existingGroup.Classes.Any(c => c.Id == lessonClass.Id);
-                    }
-                    else if (existingLesson.ClassGroup is Class existingClass && lesson.ClassGroup is Group lessonGroup)
-                    {
-                        sameGroup = lessonGroup.Classes.Any(c => c.Id == existingClass.Id);
-                    }
-                    else if (existingLesson.ClassGroup is Group eg && lesson.ClassGroup is Group lg)
-                    {
-                        // conflict if groups share any class, or same id already checked
-                        sameGroup = eg.Classes.Select(c => c.Id).Intersect(lg.Classes.Select(c => c.Id)).Any();
-                    }
-                }
-
-                bool sameDay = existingLesson.AssignedTimeSlot.Day == lesson.AssignedTimeSlot.Day;
-                bool samePeriod = existingLesson.AssignedTimeSlot.Period == lesson.AssignedTimeSlot.Period;
-
-                if (sameGroup && sameDay && samePeriod)
+                if (Overlaps(existingLesson.ClassGroup, lesson.ClassGroup))
                 {
                     return false;
                 }
             }
 
             return true;
+        }
+
+        private static bool Overlaps(ClassGroup a, ClassGroup b)
+        {
+            if (a.Id == b.Id)
+            {
+                return true;
+            }
+
+            return (a, b) switch
+            {
+                (Group ga, Class cb) => ga.Classes.Any(c => c.Id == cb.Id),
+                (Class ca, Group gb) => gb.Classes.Any(c => c.Id == ca.Id),
+                (Group ga, Group gb) => ga.Classes.Select(c => c.Id).Intersect(gb.Classes.Select(c => c.Id)).Any(),
+                _ => false
+            };
         }
     }
 }

@@ -20,6 +20,11 @@ namespace TimetablePlanner.Core.Models
         /// </summary>
         public string? GeneratorName { get; set; }
 
+        /// <summary>
+        /// A generálás időtartama.
+        /// </summary>
+        public TimeSpan Duration { get; set; }
+
         public Schedule() { }
 
         public void AddLesson(Lesson lesson)

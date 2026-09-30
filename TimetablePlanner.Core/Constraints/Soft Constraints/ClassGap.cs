@@ -10,7 +10,7 @@ namespace TimetablePlanner.Core.Constraints.Soft_Constraints
 {
     public class ClassGap : ISoftConstraint
     {
-        private const int PenaltyPerGap = 15;
+        public const int PenaltyPerGap = 15;
 
         public string Name => "Class gap minimization";
 

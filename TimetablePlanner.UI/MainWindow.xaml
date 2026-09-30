@@ -151,26 +151,47 @@
         <Border Grid.Row="1"
                 Background="#F1F5F9"
                 Padding="8,8,8,8">
-            <DataGrid x:Name="ScheduleGrid"
-                      AutoGenerateColumns="True"
-                      IsReadOnly="True"
-                      CanUserAddRows="False"
-                      CanUserDeleteRows="False"
-                      CanUserReorderColumns="False"
-                      SelectionUnit="Cell"
-                      GridLinesVisibility="All"
-                      HeadersVisibility="Column"
-                      RowHeaderWidth="0"
-                      Background="White"
-                      BorderBrush="#CBD5E1"
-                      BorderThickness="1"
-                      HorizontalGridLinesBrush="#E2E8F0"
-                      VerticalGridLinesBrush="#E2E8F0"
-                      FontSize="14"
-                      ColumnHeaderHeight="44"
-                      AlternatingRowBackground="#F8FAFC"
-                      AutoGeneratingColumn="ScheduleGrid_AutoGeneratingColumn"
-                      MouseDoubleClick="ScheduleGrid_MouseDoubleClick"/>
+            <Grid>
+                <DataGrid x:Name="ScheduleGrid"
+                          AutoGenerateColumns="True"
+                          IsReadOnly="True"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          CanUserReorderColumns="False"
+                          SelectionUnit="Cell"
+                          GridLinesVisibility="All"
+                          HeadersVisibility="Column"
+                          RowHeaderWidth="0"
+                          Background="White"
+                          BorderBrush="#CBD5E1"
+                          BorderThickness="1"
+                          HorizontalGridLinesBrush="#E2E8F0"
+                          VerticalGridLinesBrush="#E2E8F0"
+                          FontSize="14"
+                          ColumnHeaderHeight="44"
+                          AlternatingRowBackground="#F8FAFC"
+                          AutoGeneratingColumn="ScheduleGrid_AutoGeneratingColumn"
+                          MouseDoubleClick="ScheduleGrid_MouseDoubleClick">
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#1E293B"/>
+                            <Setter Property="Foreground" Value="#F8FAFC"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                            <Setter Property="BorderBrush" Value="#475569"/>
+                            <Setter Property="BorderThickness" Value="0,0,1,0"/>
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
+                </DataGrid>
+
+                <ScrollViewer x:Name="ClassViewScroll"
+                              Visibility="Collapsed"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="ClassViewPanel"
+                                MinWidth="{Binding ViewportWidth, ElementName=ClassViewScroll}"/>
+                </ScrollViewer>
+            </Grid>
         </Border>
     </Grid>
 </Window>

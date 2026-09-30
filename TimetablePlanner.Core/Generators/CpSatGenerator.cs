@@ -8,14 +8,12 @@ namespace TimetablePlanner.Core.Generators
     /// CP-SAT alapú generátor. A Greedy és a szimulált hûtés eredményétõl független modellt épít.
     /// Kemény szabályok: osztály/tanár/terem ütközés, tanár nem elérhetõ, terem kapacitás.
     /// Puha szabályok: be nem osztott óra, ClassGap, TeacherGap, ClassDayStart, LateLesson,
-    /// TeacherOneLessonAvoidance, RoomStability, DoubleLessonPreference.
+    /// TeacherOneLessonAvoidance, RoomStability, DoubleLessonPreference, ClassDayBalance,
+    /// LessonSplitOnSameDay.
     /// </summary>
     public class CpSatGenerator
     {
-        private const int ClassGapWeight = 15;
-        private const int TeacherGapWeight = 10;
-        private const int RoomStabilityWeight = 5;
-        private const int TeacherOneLessonWeight = 20;
+        
 
         private readonly LessonsGenerator _lessonsGenerator;
         private readonly int _timeLimitSeconds;
@@ -26,7 +24,10 @@ namespace TimetablePlanner.Core.Generators
             _timeLimitSeconds = timeLimitSeconds;
         }
 
-        public Schedule Generate(List<LessonRequirement> requirements, Schedule? hint = null)
+        public Schedule Generate(
+            List<LessonRequirement> requirements,
+            Schedule? hint = null,
+            IProgress<GenerationProgressReport>? progress = null)
         {
             var allSlots = requirements.SelectMany(r => r.PossibleTimeSlots).ToList();
             if (allSlots.Count == 0)
@@ -55,6 +56,7 @@ namespace TimetablePlanner.Core.Generators
             var classDay = new Dictionary<(int Id, int Day), Dictionary<int, List<BoolVar>>>();
             var teacherDay = new Dictionary<(int Id, int Day), Dictionary<int, List<BoolVar>>>();
             var classDayRoom = new Dictionary<(int ClassId, int Day, int RoomId), List<BoolVar>>();
+            var classSubjectDay = new Dictionary<(int ClassId, int SubjectId, int Day), Dictionary<int, List<BoolVar>>>();
 
             foreach (var req in requirements)
             {
@@ -96,8 +98,17 @@ namespace TimetablePlanner.Core.Generators
                     }
 
                     // x = a követelmény egy órája ebben az idõpontban van (legfeljebb egy).
-                    var x = model.NewBoolVar($"x_{req.Id}_{slotKey}");
-                    model.Add(x == LinearExpr.Sum(roomVars));
+                    // Egy teremnél x maga az y változó, így nincs külön változó és egyenlõség.
+                    BoolVar x;
+                    if (roomVars.Count == 1)
+                    {
+                        x = roomVars[0];
+                    }
+                    else
+                    {
+                        x = model.NewBoolVar($"x_{req.Id}_{slotKey}");
+                        model.Add(x == LinearExpr.Sum(roomVars));
+                    }
                     slotMap[slotKey] = (slot, x);
 
                     Add(byTeacherSlot, (req.Teacher?.Id ?? -1, slotKey), x);
@@ -113,6 +124,10 @@ namespace TimetablePlanner.Core.Generators
                     if (req.Teacher != null)
                     {
                         AddPeriod(teacherDay, (req.Teacher.Id, slot.Day), slot.Period, x);
+                    }
+                    if (req.ClassGroup != null && req.Subject != null)
+                    {
+                        AddPeriod(classSubjectDay, (req.ClassGroup.Id, req.Subject.Id, slot.Day), slot.Period, x);
                     }
 
                     // LateLesson
@@ -138,9 +153,9 @@ namespace TimetablePlanner.Core.Generators
 
             // Osztály: ClassGap + ClassDayStart. Tanár: TeacherGap + TeacherOneLessonAvoidance.
             var classUsed = AddOccupancyTerms(
-                model, zero, classDay, periods, ClassGapWeight, ClassDayStart.PenaltyPerPeriod, 0, terms);
+                model, zero, classDay, periods, ClassGap.PenaltyPerGap, ClassDayStart.PenaltyPerPeriod, 0, terms);
             AddOccupancyTerms(
-                model, zero, teacherDay, periods, TeacherGapWeight, 0, TeacherOneLessonWeight, terms);
+                model, zero, teacherDay, periods, TeacherGap.PenaltyPerGap, 0, TeacherOneLessonAvoidance.Penalty, terms);
 
             // RoomStability: osztály-napra (használt termek száma - 1) * súly
             foreach (var group in classDayRoom.GroupBy(kv => (kv.Key.ClassId, kv.Key.Day)))
@@ -161,8 +176,18 @@ namespace TimetablePlanner.Core.Generators
                     roomUsedVars.Add(ru);
                 }
 
-                terms.Add((LinearExpr.Sum(roomUsedVars) - used) * RoomStabilityWeight);
+                model.Add(LinearExpr.Sum(roomUsedVars) >= used);
+
+                var extraRooms = model.NewIntVar(0, roomUsedVars.Count, $"er_{group.Key.ClassId}_{group.Key.Day}");
+                model.Add(extraRooms >= LinearExpr.Sum(roomUsedVars) - used);
+                terms.Add(extraRooms * RoomStability.PenaltyPerExtraRoom);
             }
+
+            // ClassDayBalance: osztály szintû, napok közötti egyenlõtlenség
+            AddClassDayBalanceTerms(model, zero, classDay, terms);
+
+            // LessonSplitOnSameDay: osztály + tantárgy + nap, a szünetek száma
+            AddLessonSplitTerms(model, classSubjectDay, terms);
 
             // Kezdõmegoldás: a Greedy és a szimulált hûtés közül a jobbik eredménye.
             if (hint != null)
@@ -182,10 +207,34 @@ namespace TimetablePlanner.Core.Generators
 
             var solver = new CpSolver
             {
+                // linearization_level:2 erõsebb LP-relaxációt ad, symmetry_level:2 a terem-szimmetriákat töri.
                 StringParameters =
-                    $"max_time_in_seconds:{_timeLimitSeconds} num_workers:{Math.Max(1, Environment.ProcessorCount)} repair_hint:true"
+                    $"max_time_in_seconds:{_timeLimitSeconds} num_workers:{Math.Max(1, Environment.ProcessorCount)} " +
+                    "repair_hint:true linearization_level:2 symmetry_level:2"
             };
+
+            // A solver blokkol, ezért a haladást a letelt idõ alapján jelezzük.
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            using var progressTimer = new System.Threading.Timer(_ =>
+            {
+                var fraction = Math.Min(1.0, stopwatch.Elapsed.TotalSeconds / Math.Max(1, _timeLimitSeconds));
+                try
+                {
+                    progress?.Report(new GenerationProgressReport
+                    {
+                        Overall = 0.5 + fraction * 0.45, // a CP-SAT a [0.5..0.95] sávot használja
+                        Stage = "CP-SAT",
+                        StageProgress = fraction
+                    });
+                }
+                catch
+                {
+                    // ignore progress failures
+                }
+            }, null, 0, 500);
+
             var status = solver.Solve(model);
+            progressTimer.Dispose();
             System.Diagnostics.Debug.WriteLine(
                 $"CP-SAT: {status}, objective={(HasSolution(status) ? solver.ObjectiveValue : double.NaN)}, bound={solver.BestObjectiveBound}, idõ={solver.WallTime():0.0}s");
 
@@ -266,7 +315,9 @@ namespace TimetablePlanner.Core.Generators
                 {
                     for (int i = 0; i < n; i++)
                     {
-                        terms.Add((used - pre[i]) * startWeight);
+                        var s = model.NewBoolVar($"start_{key.Id}_{key.Day}_{i}");
+                        model.Add(s >= used - pre[i]);
+                        terms.Add(s * startWeight);
                     }
                     if (periods[0] > 1)
                     {
@@ -282,6 +333,19 @@ namespace TimetablePlanner.Core.Generators
                     var single = model.NewBoolVar($"single_{key.Id}_{key.Day}");
                     model.Add(single >= used - multi);
                     terms.Add(single * singleWeight);
+                }
+
+                // Explicit lineáris kapcsolatok a szorosabb LP-relaxációhoz.
+                for (int i = 0; i < n; i++)
+                {
+                    model.Add(occ[i] <= pre[i]);
+                    model.Add(pre[i] <= used);
+                    model.Add(occ[i] <= suf[i]);
+                    if (i > 0)
+                    {
+                        model.Add(pre[i - 1] <= pre[i]);
+                        model.Add(pre[i] <= pre[i - 1] + occ[i]);
+                    }
                 }
             }
 
@@ -339,14 +403,53 @@ namespace TimetablePlanner.Core.Generators
                         }
                     }
 
+                    // DoubleLessonPreference (PreferDoubleLesson ág)
                     var lessons = LinearExpr.Sum(byPeriod.Values);
                     var pairs = LinearExpr.Sum(links.Values) * 2;
-                    terms.Add((lessons - pairs) * DoubleLessonPreference.Penalty);
+                    var unpaired = model.NewIntVar(0, byPeriod.Count, $"unp_{req.Id}_{day.Key}");
+                    model.Add(unpaired >= lessons - pairs);
+                    terms.Add(unpaired * DoubleLessonPreference.Penalty);
                 }
                 else if (links.Count > 0)
                 {
                     terms.Add(LinearExpr.Sum(links.Values) * DoubleLessonPreference.Penalty);
                 }
+            }
+        }
+
+        private static void AddLessonSplitTerms(
+            CpModel model,
+            Dictionary<(int ClassId, int SubjectId, int Day), Dictionary<int, List<BoolVar>>> map,
+            List<LinearExpr> terms)
+        {
+            foreach (var (key, byPeriod) in map)
+            {
+                if (byPeriod.Count < 2)
+                {
+                    continue;
+                }
+
+                var starts = new List<BoolVar>();
+                foreach (var (period, list) in byPeriod)
+                {
+                    // Az osztály-ütközés miatt periódusonként legfeljebb egy óra lehet.
+                    var occ = LinearExpr.Sum(list);
+                    var start = model.NewBoolVar($"ls_{key.ClassId}_{key.SubjectId}_{key.Day}_{period}");
+
+                    if (byPeriod.TryGetValue(period - 1, out var prev))
+                    {
+                        model.Add(start >= occ - LinearExpr.Sum(prev));
+                    }
+                    else
+                    {
+                        model.Add(start >= occ);
+                    }
+                    starts.Add(start);
+                }
+
+                var gaps = model.NewIntVar(0, starts.Count, $"lsgap_{key.ClassId}_{key.SubjectId}_{key.Day}");
+                model.Add(gaps >= LinearExpr.Sum(starts) - 1);
+                terms.Add(gaps * LessonSplitOnSameDay.PenaltyPerBreak);
             }
         }
 
@@ -429,11 +532,11 @@ namespace TimetablePlanner.Core.Generators
             }
         }
 
-        private static void AddPeriod(
-            Dictionary<(int Id, int Day), Dictionary<int, List<BoolVar>>> map,
-            (int Id, int Day) key,
+        private static void AddPeriod<TKey>(
+            Dictionary<TKey, Dictionary<int, List<BoolVar>>> map,
+            TKey key,
             int period,
-            BoolVar x)
+            BoolVar x) where TKey : notnull
         {
             if (!map.TryGetValue(key, out var byPeriod))
             {
@@ -463,6 +566,47 @@ namespace TimetablePlanner.Core.Generators
                 {
                     model.AddAtMostOne(list);
                 }
+            }
+        }
+
+        private static void AddClassDayBalanceTerms(
+            CpModel model,
+            IntVar zero,
+            Dictionary<(int Id, int Day), Dictionary<int, List<BoolVar>>> classDay,
+            List<LinearExpr> terms)
+        {
+            foreach (var byClass in classDay.GroupBy(kv => kv.Key.Id))
+            {
+                var counts = new LinearExpr[ClassDayBalance.DaysPerWeek];
+                int total = 0;
+
+                for (int d = 1; d <= ClassDayBalance.DaysPerWeek; d++)
+                {
+                    if (classDay.TryGetValue((byClass.Key, d), out var byPeriod))
+                    {
+                        var vars = byPeriod.Values.SelectMany(v => v).ToList();
+                        total += vars.Count;
+                        counts[d - 1] = vars.Count == 0 ? zero : LinearExpr.Sum(vars);
+                    }
+                    else
+                    {
+                        counts[d - 1] = zero;
+                    }
+                }
+
+                var spread = model.NewIntVar(0, total, $"spread_{byClass.Key}");
+                for (int a = 0; a < counts.Length; a++)
+                {
+                    for (int b = 0; b < counts.Length; b++)
+                    {
+                        if (a != b)
+                        {
+                            model.Add(spread >= counts[a] - counts[b]);
+                        }
+                    }
+                }
+
+                terms.Add(spread * ClassDayBalance.PenaltyPerLessonDifference);
             }
         }
 
