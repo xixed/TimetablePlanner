@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TimetablePlanner.Core.Constraints.Soft_Constraints;
 using TimetablePlanner.Core.Interfaces;
 using TimetablePlanner.Core.Interfaces.Constraint;
 using TimetablePlanner.Core.Models;
@@ -22,17 +23,11 @@ namespace TimetablePlanner.Core.Generators
             _lessonsGenerator = lessonsGenerator;
         }
 
-
-
         public Schedule Generate(List<LessonRequirement> requirements)
         {
             var schedule = new Schedule();
 
-            
-            var lessonsToPlace = _lessonsGenerator.Generate(requirements);
-
-            
-            lessonsToPlace = lessonsToPlace
+            var lessonsToPlace = _lessonsGenerator.Generate(requirements)
                 .OrderBy(l => l.Requirement.PossibleTimeSlots.Count)
                 .ThenBy(l => l.Requirement.SuitableRooms.Count)
                 .ToList();
@@ -40,7 +35,7 @@ namespace TimetablePlanner.Core.Generators
             foreach (var lesson in lessonsToPlace)
             {
                 Lesson? bestCandidate = null;
-                int bestPenalty = int.MaxValue;
+                var bestScore = int.MaxValue;
 
                 foreach (var timeSlot in lesson.Requirement.PossibleTimeSlots)
                 {
@@ -57,37 +52,54 @@ namespace TimetablePlanner.Core.Generators
                             AssignedRoom = room
                         };
 
-                        bool hardOk = _hardConstraints.All(c => c.IsSatisfied(schedule, candidate));
-                        if (!hardOk)
-                            continue;
-
-                        int penalty = _softConstraints.Sum(c => c.GetPenalty(schedule, candidate));
-
-                        if (penalty < bestPenalty)
+                        if (!_hardConstraints.All(c => c.IsSatisfied(schedule, candidate)))
                         {
-                            bestPenalty = penalty;
+                            continue;
+                        }
+
+                        schedule.AddLesson(candidate);
+                        var score = ComputeTotalPenalty(schedule);
+                        schedule.RemoveLesson(candidate);
+
+                        if (score < bestScore)
+                        {
+                            bestScore = score;
                             bestCandidate = candidate;
                         }
                     }
                 }
 
-                if (bestCandidate != null)
+                var unscheduledScore = ComputeTotalPenaltyWithAdditionalUnscheduled(schedule, lesson);
+
+                if (bestCandidate != null && bestScore <= unscheduledScore)
                 {
                     schedule.AddLesson(bestCandidate);
-                    schedule.TotalPenalty += bestPenalty;
                 }
                 else
                 {
                     schedule.UnScheduledLessons.Add(lesson);
                 }
+
+                schedule.TotalPenalty = ComputeTotalPenalty(schedule);
             }
 
             return schedule;
         }
 
+        private int ComputeTotalPenalty(Schedule schedule)
+        {
+            var total = 0;
+            foreach (var sc in _softConstraints)
+            {
+                total += sc.GetTotalPenalty(schedule);
+            }
 
+            return total;
+        }
 
+        private static int ComputeTotalPenaltyWithAdditionalUnscheduled(Schedule schedule, Lesson lesson)
+        {
+            return schedule.TotalPenalty + UnscheduledLessonPenalty.PenaltyPerLesson;
+        }
     }
-
-    
 }

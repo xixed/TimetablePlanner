@@ -403,19 +403,20 @@ namespace TimetablePlanner.UI
         {
             if (lesson.ClassGroup is Group group && group.Classes != null && group.Classes.Count > 0)
             {
-                var classNames = group.Classes
+                return group.Classes
                     .Select(c => c.Name)
                     .Where(n => !string.IsNullOrWhiteSpace(n))
                     .Distinct()
+                    .OrderBy(n => n)
                     .ToList();
-
-                if (classNames.Count > 0)
-                {
-                    return classNames;
-                }
             }
 
-            return [lesson.ClassGroup.Name];
+            if (lesson.ClassGroup is Class schoolClass && !string.IsNullOrWhiteSpace(schoolClass.Name))
+            {
+                return [schoolClass.Name];
+            }
+
+            return [];
         }
 
         private void ScheduleGrid_AutoGeneratingColumn(object? sender, DataGridAutoGeneratingColumnEventArgs e)
@@ -468,7 +469,8 @@ namespace TimetablePlanner.UI
             var teacher = lesson.Teacher?.Name ?? "—";
             var room = lesson.AssignedRoom?.Name ?? "—";
             var subjectName = lesson.Subject?.Name ?? "—";
-            return $"{subjectName}{Environment.NewLine}Terem: {room}{Environment.NewLine}Tanár: {teacher}";
+            var groupSuffix = lesson.ClassGroup is Group group ? $"\nCsoport: {group.Name}" : string.Empty;
+            return $"{subjectName}{groupSuffix}{Environment.NewLine}Terem: {room}{Environment.NewLine}Tanár: {teacher}";
         }
 
         private void ScheduleGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -514,13 +516,20 @@ namespace TimetablePlanner.UI
                     details.AppendLine();
                 }
 
+                var displayClasses = GetDisplayClassNames(lesson);
+                var classText = displayClasses.Count > 0 ? string.Join(", ", displayClasses) : "-";
+                var groupText = lesson.ClassGroup is Group group ? group.Name : "-";
+                var parallelKeyText = lesson.ClassGroup is Group g ? (g.ParallelKey ?? "-") : "-";
+
                 details.AppendLine($"Lesson ID: {lesson.Id}");
-                details.AppendLine($"Osztály: {lesson.ClassGroup.Name}");
+                details.AppendLine($"Osztály: {classText}");
                 details.AppendLine($"Tantárgy: {lesson.Subject.Name}");
                 details.AppendLine($"Tanár: {lesson.Teacher.Name}");
                 details.AppendLine($"Terem: {lesson.AssignedRoom?.Name ?? "-"}");
                 details.AppendLine($"Idősáv: {header}");
                 details.AppendLine($"Heti óraszám igény: {lesson.Requirement.WeeklyHours}");
+                details.AppendLine($"Csoport: {groupText}");
+                details.AppendLine($"Párhuzamos kulcs: {parallelKeyText}");
             }
 
             MessageBox.Show(

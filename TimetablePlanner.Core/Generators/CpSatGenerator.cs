@@ -4,17 +4,8 @@ using TimetablePlanner.Core.Models;
 
 namespace TimetablePlanner.Core.Generators
 {
-    /// <summary>
-    /// CP-SAT alapú generátor. A Greedy és a szimulált hûtés eredményétõl független modellt épít.
-    /// Kemény szabályok: osztály/tanár/terem ütközés, tanár nem elérhetõ, terem kapacitás.
-    /// Puha szabályok: be nem osztott óra, ClassGap, TeacherGap, ClassDayStart, LateLesson,
-    /// TeacherOneLessonAvoidance, RoomStability, DoubleLessonPreference, ClassDayBalance,
-    /// LessonSplitOnSameDay.
-    /// </summary>
     public class CpSatGenerator
     {
-        
-
         private readonly LessonsGenerator _lessonsGenerator;
         private readonly int _timeLimitSeconds;
 
@@ -42,7 +33,7 @@ namespace TimetablePlanner.Core.Generators
             var periods = Enumerable.Range(minPeriod, maxPeriod - minPeriod + 1).ToArray();
 
             var model = new CpModel();
-            var zero = model.NewIntVar(0, 0, "zero");
+            var zero = model.NewConstant(0);
             var terms = new List<LinearExpr>();
 
             var placements = new List<Placement>();
@@ -52,11 +43,11 @@ namespace TimetablePlanner.Core.Generators
             var byRoomSlot = new Dictionary<(int, int), List<BoolVar>>();
             var byClassUnitSlot = new Dictionary<(string, int), List<BoolVar>>();
 
-            // Puha szabályokhoz: entitás + nap -> periódus -> az órát jelzõ változók.
             var classDay = new Dictionary<(int Id, int Day), Dictionary<int, List<BoolVar>>>();
             var teacherDay = new Dictionary<(int Id, int Day), Dictionary<int, List<BoolVar>>>();
             var classDayRoom = new Dictionary<(int ClassId, int Day, int RoomId), List<BoolVar>>();
             var classSubjectDay = new Dictionary<(int ClassId, int SubjectId, int Day), Dictionary<int, List<BoolVar>>>();
+            var parallelSubjectSlot = new Dictionary<(string ParallelKey, int SubjectId, int SlotKey), List<BoolVar>>(StringTupleComparer.OrdinalIgnoreCaseInstance);
 
             foreach (var req in requirements)
             {
@@ -97,8 +88,6 @@ namespace TimetablePlanner.Core.Generators
                         continue;
                     }
 
-                    // x = a követelmény egy órája ebben az idõpontban van (legfeljebb egy).
-                    // Egy teremnél x maga az y változó, így nincs külön változó és egyenlõség.
                     BoolVar x;
                     if (roomVars.Count == 1)
                     {
@@ -112,7 +101,7 @@ namespace TimetablePlanner.Core.Generators
                     slotMap[slotKey] = (slot, x);
 
                     Add(byTeacherSlot, (req.Teacher?.Id ?? -1, slotKey), x);
-                    foreach (var unit in ClassUnits(req.ClassGroup))
+                    foreach (var unit in ConflictUnits(req.ClassGroup))
                     {
                         Add(byClassUnitSlot, (unit, slotKey), x);
                     }
@@ -129,8 +118,11 @@ namespace TimetablePlanner.Core.Generators
                     {
                         AddPeriod(classSubjectDay, (req.ClassGroup.Id, req.Subject.Id, slot.Day), slot.Period, x);
                     }
+                    if (req.ClassGroup is Group group && req.Subject != null && !string.IsNullOrWhiteSpace(group.ParallelKey))
+                    {
+                        Add(parallelSubjectSlot, (group.ParallelKey!, req.Subject.Id, slotKey), x);
+                    }
 
-                    // LateLesson
                     var late = Math.Max(0, slot.Period - LateLesson.LastNormalPeriod) * LateLesson.PenaltyPerPeriod;
                     if (late > 0)
                     {
@@ -138,26 +130,25 @@ namespace TimetablePlanner.Core.Generators
                     }
                 }
 
-                // Összes óra = beosztott + be nem osztott
+                var scheduled = slotMap.Values.Select(v => v.Item2).ToList();
+                model.Add(LinearExpr.Sum(scheduled) <= req.WeeklyHours);
+
                 var unscheduled = model.NewIntVar(0, req.WeeklyHours, $"u_{req.Id}");
-                model.Add(LinearExpr.Sum(slotMap.Values.Select(v => v.Item2)) + unscheduled == req.WeeklyHours);
+                model.Add(LinearExpr.Sum(scheduled) + unscheduled == req.WeeklyHours);
                 terms.Add(unscheduled * UnscheduledLessonPenalty.PenaltyPerLesson);
 
                 AddDoubleLessonTerms(model, req, slotMap, terms);
             }
 
-            // Kemény ütközések
             AddAtMostOne(model, byTeacherSlot.Values);
             AddAtMostOne(model, byRoomSlot.Values);
             AddAtMostOne(model, byClassUnitSlot.Values);
 
-            // Osztály: ClassGap + ClassDayStart. Tanár: TeacherGap + TeacherOneLessonAvoidance.
             var classUsed = AddOccupancyTerms(
                 model, zero, classDay, periods, ClassGap.PenaltyPerGap, ClassDayStart.PenaltyPerPeriod, 0, terms);
             AddOccupancyTerms(
                 model, zero, teacherDay, periods, TeacherGap.PenaltyPerGap, 0, TeacherOneLessonAvoidance.Penalty, terms);
 
-            // RoomStability: osztály-napra (használt termek száma - 1) * súly
             foreach (var group in classDayRoom.GroupBy(kv => (kv.Key.ClassId, kv.Key.Day)))
             {
                 if (!classUsed.TryGetValue((group.Key.ClassId, group.Key.Day), out var used))
@@ -173,23 +164,24 @@ namespace TimetablePlanner.Core.Generators
                     {
                         model.Add(y <= ru);
                     }
+                    model.Add(ru <= LinearExpr.Sum(ys));
                     roomUsedVars.Add(ru);
                 }
 
-                model.Add(LinearExpr.Sum(roomUsedVars) >= used);
+                var roomCount = model.NewIntVar(0, roomUsedVars.Count, $"rc_{group.Key.ClassId}_{group.Key.Day}");
+                model.Add(roomCount == LinearExpr.Sum(roomUsedVars));
 
                 var extraRooms = model.NewIntVar(0, roomUsedVars.Count, $"er_{group.Key.ClassId}_{group.Key.Day}");
-                model.Add(extraRooms >= LinearExpr.Sum(roomUsedVars) - used);
+                model.Add(extraRooms >= roomCount - used);
+                model.Add(extraRooms <= roomCount);
+                model.Add(extraRooms <= roomUsedVars.Count * used);
                 terms.Add(extraRooms * RoomStability.PenaltyPerExtraRoom);
             }
 
-            // ClassDayBalance: osztály szintû, napok közötti egyenlõtlenség
             AddClassDayBalanceTerms(model, zero, classDay, terms);
-
-            // LessonSplitOnSameDay: osztály + tantárgy + nap, a szünetek száma
             AddLessonSplitTerms(model, classSubjectDay, terms);
+            AddParallelGroupSynchronizationTerms(model, parallelSubjectSlot, terms);
 
-            // Kezdõmegoldás: a Greedy és a szimulált hûtés közül a jobbik eredménye.
             if (hint != null)
             {
                 var hinted = new HashSet<(int ReqId, int SlotKey, int RoomId)>(
@@ -207,13 +199,11 @@ namespace TimetablePlanner.Core.Generators
 
             var solver = new CpSolver
             {
-                // linearization_level:2 erõsebb LP-relaxációt ad, symmetry_level:2 a terem-szimmetriákat töri.
                 StringParameters =
                     $"max_time_in_seconds:{_timeLimitSeconds} num_workers:{Math.Max(1, Environment.ProcessorCount)} " +
                     "repair_hint:true linearization_level:2 symmetry_level:2"
             };
 
-            // A solver blokkol, ezért a haladást a letelt idõ alapján jelezzük.
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             using var progressTimer = new System.Threading.Timer(_ =>
             {
@@ -222,14 +212,13 @@ namespace TimetablePlanner.Core.Generators
                 {
                     progress?.Report(new GenerationProgressReport
                     {
-                        Overall = 0.5 + fraction * 0.45, // a CP-SAT a [0.5..0.95] sávot használja
+                        Overall = 0.5 + fraction * 0.45,
                         Stage = "CP-SAT",
                         StageProgress = fraction
                     });
                 }
                 catch
                 {
-                    // ignore progress failures
                 }
             }, null, 0, 500);
 
@@ -244,10 +233,6 @@ namespace TimetablePlanner.Core.Generators
         private static bool HasSolution(CpSolverStatus status) =>
             status == CpSolverStatus.Optimal || status == CpSolverStatus.Feasible;
 
-        /// <summary>
-        /// Egy entitás (osztály/tanár) napi foglaltságából gap, nap eleje és "egyetlen óra" büntetést épít.
-        /// Visszaadja a napi "van óra" változókat.
-        /// </summary>
         private static Dictionary<(int Id, int Day), IntVar> AddOccupancyTerms(
             CpModel model,
             IntVar zero,
@@ -282,7 +267,6 @@ namespace TimetablePlanner.Core.Generators
                     }
                 }
 
-                // pre[i] = van óra az i. periódusig, suf[i] = van óra az i. periódustól
                 var pre = new IntVar[n];
                 var suf = new IntVar[n];
                 pre[0] = occ[0];
@@ -306,6 +290,9 @@ namespace TimetablePlanner.Core.Generators
                     {
                         var gap = model.NewBoolVar($"gap_{key.Id}_{key.Day}_{i}");
                         model.Add(gap >= pre[i - 1] + suf[i + 1] - occ[i] - 1);
+                        model.Add(gap <= pre[i - 1]);
+                        model.Add(gap <= suf[i + 1]);
+                        model.Add(gap + occ[i] <= 1);
                         terms.Add(gap * gapWeight);
                     }
                 }
@@ -315,23 +302,33 @@ namespace TimetablePlanner.Core.Generators
                 {
                     for (int i = 0; i < n; i++)
                     {
-                        var s = model.NewBoolVar($"start_{key.Id}_{key.Day}_{i}");
-                        model.Add(s >= used - pre[i]);
-                        terms.Add(s * startWeight);
-                    }
-                    if (periods[0] > 1)
-                    {
-                        terms.Add(used * ((periods[0] - 1) * startWeight));
+                        var isStart = model.NewBoolVar($"start_{key.Id}_{key.Day}_{i}");
+                        if (i == 0)
+                        {
+                            model.Add(isStart == occ[i]);
+                        }
+                        else
+                        {
+                            model.Add(isStart >= occ[i] - pre[i - 1]);
+                            model.Add(isStart <= occ[i]);
+                            model.Add(isStart + pre[i - 1] <= 1);
+                        }
+
+                        var offset = periods[i] - 1;
+                        if (offset > 0)
+                        {
+                            terms.Add(isStart * (offset * startWeight));
+                        }
                     }
                 }
 
                 // Pontosan egy órás nap büntetése
                 if (singleWeight > 0)
                 {
-                    var multi = model.NewBoolVar($"multi_{key.Id}_{key.Day}");
-                    model.Add(LinearExpr.Sum(occ) >= 2 * multi);
+                    var lessonCount = LinearExpr.Sum(occ);
                     var single = model.NewBoolVar($"single_{key.Id}_{key.Day}");
-                    model.Add(single >= used - multi);
+                    model.Add(lessonCount == 1).OnlyEnforceIf(single);
+                    model.Add(lessonCount != 1).OnlyEnforceIf(single.Not());
                     terms.Add(single * singleWeight);
                 }
 
@@ -345,6 +342,11 @@ namespace TimetablePlanner.Core.Generators
                     {
                         model.Add(pre[i - 1] <= pre[i]);
                         model.Add(pre[i] <= pre[i - 1] + occ[i]);
+                    }
+                    if (i < n - 1)
+                    {
+                        model.Add(suf[i + 1] <= suf[i]);
+                        model.Add(suf[i] <= suf[i + 1] + occ[i]);
                     }
                 }
             }
@@ -379,17 +381,9 @@ namespace TimetablePlanner.Core.Generators
                     }
 
                     var link = model.NewBoolVar($"dl_{req.Id}_{day.Key}_{period}");
-                    if (req.PreferDoubleLesson)
-                    {
-                        // pár: mindkét óra jelen van
-                        model.Add(link <= x);
-                        model.Add(link <= next);
-                    }
-                    else
-                    {
-                        // szomszédos pár
-                        model.Add(link >= x + next - 1);
-                    }
+                    model.Add(link <= x);
+                    model.Add(link <= next);
+                    model.Add(link >= x + next - 1);
                     links[period] = link;
                 }
 
@@ -399,11 +393,10 @@ namespace TimetablePlanner.Core.Generators
                     {
                         if (links.TryGetValue(period + 1, out var nextLink))
                         {
-                            model.Add(link + nextLink <= 1); // egy óra legfeljebb egy párban
+                            model.Add(link + nextLink <= 1);
                         }
                     }
 
-                    // DoubleLessonPreference (PreferDoubleLesson ág)
                     var lessons = LinearExpr.Sum(byPeriod.Values);
                     var pairs = LinearExpr.Sum(links.Values) * 2;
                     var unpaired = model.NewIntVar(0, byPeriod.Count, $"unp_{req.Id}_{day.Key}");
@@ -430,19 +423,22 @@ namespace TimetablePlanner.Core.Generators
                 }
 
                 var starts = new List<BoolVar>();
-                foreach (var (period, list) in byPeriod)
+                foreach (var period in byPeriod.Keys.OrderBy(p => p))
                 {
-                    // Az osztály-ütközés miatt periódusonként legfeljebb egy óra lehet.
+                    var list = byPeriod[period];
                     var occ = LinearExpr.Sum(list);
                     var start = model.NewBoolVar($"ls_{key.ClassId}_{key.SubjectId}_{key.Day}_{period}");
 
                     if (byPeriod.TryGetValue(period - 1, out var prev))
                     {
-                        model.Add(start >= occ - LinearExpr.Sum(prev));
+                        var prevOcc = LinearExpr.Sum(prev);
+                        model.Add(start >= occ - prevOcc);
+                        model.Add(start <= occ);
+                        model.Add(start <= 1 - prevOcc);
                     }
                     else
                     {
-                        model.Add(start >= occ);
+                        model.Add(start == occ);
                     }
                     starts.Add(start);
                 }
@@ -450,6 +446,40 @@ namespace TimetablePlanner.Core.Generators
                 var gaps = model.NewIntVar(0, starts.Count, $"lsgap_{key.ClassId}_{key.SubjectId}_{key.Day}");
                 model.Add(gaps >= LinearExpr.Sum(starts) - 1);
                 terms.Add(gaps * LessonSplitOnSameDay.PenaltyPerBreak);
+            }
+        }
+
+        private static void AddParallelGroupSynchronizationTerms(
+            CpModel model,
+            Dictionary<(string ParallelKey, int SubjectId, int SlotKey), List<BoolVar>> parallelSubjectSlot,
+            List<LinearExpr> terms)
+        {
+            foreach (var band in parallelSubjectSlot.GroupBy(kv => (kv.Key.ParallelKey, kv.Key.SubjectId), StringTupleComparer.OrdinalIgnoreCaseBandSubjectInstance))
+            {
+                var slotCounts = band
+                    .Select(kv =>
+                    {
+                        var count = model.NewIntVar(0, kv.Value.Count, $"pgc_{Sanitize(kv.Key.ParallelKey)}_{kv.Key.SubjectId}_{kv.Key.SlotKey}");
+                        model.Add(count == LinearExpr.Sum(kv.Value));
+                        return count;
+                    })
+                    .ToList();
+
+                if (slotCounts.Count == 0)
+                {
+                    continue;
+                }
+
+                var maxParallel = slotCounts.Max(v => v.Proto.Domain.Last());
+                var bestAligned = model.NewIntVar(0, maxParallel, $"pgbest_{Sanitize(band.Key.ParallelKey)}_{band.Key.SubjectId}");
+                model.AddMaxEquality(bestAligned, slotCounts);
+
+                var totalLessons = model.NewIntVar(0, slotCounts.Sum(v => (int)v.Proto.Domain.Last()), $"pgtotal_{Sanitize(band.Key.ParallelKey)}_{band.Key.SubjectId}");
+                model.Add(totalLessons == LinearExpr.Sum(slotCounts));
+
+                var missing = model.NewIntVar(0, slotCounts.Sum(v => (int)v.Proto.Domain.Last()), $"pgmiss_{Sanitize(band.Key.ParallelKey)}_{band.Key.SubjectId}");
+                model.Add(missing == totalLessons - bestAligned);
+                terms.Add(missing * ParallelGroupSynchronization.PenaltyPerMissingParallelLesson);
             }
         }
 
@@ -469,8 +499,7 @@ namespace TimetablePlanner.Core.Generators
             var schedule = new Schedule();
             var allLessons = _lessonsGenerator.Generate(requirements);
 
-            bool hasSolution = status == CpSolverStatus.Optimal || status == CpSolverStatus.Feasible;
-            if (!hasSolution)
+            if (!HasSolution(status))
             {
                 schedule.UnScheduledLessons.AddRange(allLessons);
                 return schedule;
@@ -508,27 +537,27 @@ namespace TimetablePlanner.Core.Generators
 
         private static int SlotKey(TimeSlot ts) => ts.Day * 1000 + ts.Period;
 
-        private static IEnumerable<string> ClassUnits(ClassGroup? cg)
+        private static IEnumerable<string> ConflictUnits(ClassGroup? cg)
         {
             if (cg == null)
             {
                 yield break;
             }
 
-            if (cg is Group g && g.Classes.Count > 0)
+            if (cg is Class schoolClass)
             {
-                foreach (var c in g.Classes)
+                yield return $"C{schoolClass.Id}";
+                yield break;
+            }
+
+            if (cg is Group group)
+            {
+                yield return $"G:{group.Id}";
+
+                foreach (var schoolClassInGroup in group.GetMemberClasses().GroupBy(c => c.Id).Select(g => g.First()))
                 {
-                    yield return $"C{c.Id}";
+                    yield return $"C{schoolClassInGroup.Id}";
                 }
-            }
-            else if (cg is Class)
-            {
-                yield return $"C{cg.Id}";
-            }
-            else
-            {
-                yield return $"G{cg.Id}";
             }
         }
 
@@ -594,20 +623,44 @@ namespace TimetablePlanner.Core.Generators
                     }
                 }
 
-                var spread = model.NewIntVar(0, total, $"spread_{byClass.Key}");
-                for (int a = 0; a < counts.Length; a++)
+                var maxCount = model.NewIntVar(0, total, $"maxday_{byClass.Key}");
+                var minCount = model.NewIntVar(0, total, $"minday_{byClass.Key}");
+                foreach (var count in counts)
                 {
-                    for (int b = 0; b < counts.Length; b++)
-                    {
-                        if (a != b)
-                        {
-                            model.Add(spread >= counts[a] - counts[b]);
-                        }
-                    }
+                    model.Add(maxCount >= count);
+                    model.Add(minCount <= count);
                 }
 
+                var spread = model.NewIntVar(0, total, $"spread_{byClass.Key}");
+                model.Add(spread == maxCount - minCount);
                 terms.Add(spread * ClassDayBalance.PenaltyPerLessonDifference);
             }
+        }
+
+        private static string Sanitize(string value)
+        {
+            return string.Concat(value.Select(ch => char.IsLetterOrDigit(ch) ? ch : '_'));
+        }
+
+        private sealed class StringTupleComparer : IEqualityComparer<(string ParallelKey, int SubjectId, int SlotKey)>, IEqualityComparer<(string ParallelKey, int SubjectId)>
+        {
+            public static readonly StringTupleComparer OrdinalIgnoreCaseInstance = new();
+            public static readonly StringTupleComparer OrdinalIgnoreCaseBandSubjectInstance = new();
+
+            public bool Equals((string ParallelKey, int SubjectId, int SlotKey) x, (string ParallelKey, int SubjectId, int SlotKey) y)
+                => string.Equals(x.ParallelKey, y.ParallelKey, StringComparison.OrdinalIgnoreCase)
+                   && x.SubjectId == y.SubjectId
+                   && x.SlotKey == y.SlotKey;
+
+            public int GetHashCode((string ParallelKey, int SubjectId, int SlotKey) obj)
+                => HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(obj.ParallelKey), obj.SubjectId, obj.SlotKey);
+
+            public bool Equals((string ParallelKey, int SubjectId) x, (string ParallelKey, int SubjectId) y)
+                => string.Equals(x.ParallelKey, y.ParallelKey, StringComparison.OrdinalIgnoreCase)
+                   && x.SubjectId == y.SubjectId;
+
+            public int GetHashCode((string ParallelKey, int SubjectId) obj)
+                => HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(obj.ParallelKey), obj.SubjectId);
         }
 
         private sealed record Placement(LessonRequirement Requirement, TimeSlot Slot, Room Room, BoolVar Var);

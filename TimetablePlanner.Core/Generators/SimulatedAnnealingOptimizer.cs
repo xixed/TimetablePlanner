@@ -99,48 +99,8 @@ namespace TimetablePlanner.Core.Generators
                 return current;
             }
 
-            // Egy lépés csak a mozgatott óra osztályát és tanárát érinti, ezért csak azok óráit pontozzuk újra.
-            var byClass = new Dictionary<int, List<Lesson>>();
-            var byTeacher = new Dictionary<int, List<Lesson>>();
-            foreach (var l in lessons)
-            {
-                if (l.ClassGroup != null)
-                {
-                    AddTo(byClass, l.ClassGroup.Id, l);
-                }
-                if (l.Teacher != null)
-                {
-                    AddTo(byTeacher, l.Teacher.Id, l);
-                }
-            }
-
-            var affected = new HashSet<Lesson>(ReferenceEqualityComparer.Instance);
-
-            void Collect(Lesson l)
-            {
-                if (l.ClassGroup != null && byClass.TryGetValue(l.ClassGroup.Id, out var c))
-                {
-                    affected.UnionWith(c);
-                }
-                if (l.Teacher != null && byTeacher.TryGetValue(l.Teacher.Id, out var t))
-                {
-                    affected.UnionWith(t);
-                }
-            }
-
-            int LocalPenalty(Lesson a, Lesson? b)
-            {
-                affected.Clear();
-                Collect(a);
-                if (b != null)
-                {
-                    Collect(b);
-                }
-
-                return ComputeTotalPenalty(new Schedule { Lessons = affected.ToList() });
-            }
-
             var currentPenalty = ComputeTotalPenalty(current);
+            current.TotalPenalty = currentPenalty;
             var bestPenalty = currentPenalty;
             var bestSlots = lessons.Select(l => l.AssignedTimeSlot).ToArray();
             var bestRooms = lessons.Select(l => l.AssignedRoom).ToArray();
@@ -167,7 +127,7 @@ namespace TimetablePlanner.Core.Generators
                     break;
                 }
 
-                // Geometrikus hűtés a teljes kereten, a lépések kimenetelétől függetlenül.
+                // Geometrikus hűtés a teljes keraten, a lépések kimenetelétől függetlenül.
                 var temperature = initialTemperature * Math.Pow(coolingRatio, fraction);
 
                 if (progress != null && iter % 100 == 0)
@@ -210,8 +170,6 @@ namespace TimetablePlanner.Core.Generators
                     continue;
                 }
 
-                var before = LocalPenalty(lesson, null);
-
                 lesson.AssignedTimeSlot = slotCandidate;
                 lesson.AssignedRoom = roomCandidate;
 
@@ -222,11 +180,13 @@ namespace TimetablePlanner.Core.Generators
                     continue;
                 }
 
-                var delta = LocalPenalty(lesson, null) - before;
+                var candidatePenalty = ComputeTotalPenalty(current);
+                var delta = candidatePenalty - currentPenalty;
 
                 if (delta <= 0 || random.NextDouble() <= Math.Exp(-delta / Math.Max(temperature, 1e-6)))
                 {
-                    currentPenalty += delta;
+                    currentPenalty = candidatePenalty;
+                    current.TotalPenalty = currentPenalty;
                     if (currentPenalty < bestPenalty)
                     {
                         bestPenalty = currentPenalty;
@@ -252,28 +212,35 @@ namespace TimetablePlanner.Core.Generators
                         continue;
                     }
 
-                    var swapBefore = LocalPenalty(a, b);
+                    var originalSlotA = a.AssignedTimeSlot;
+                    var originalRoomA = a.AssignedRoom;
+                    var originalSlotB = b.AssignedTimeSlot;
+                    var originalRoomB = b.AssignedRoom;
 
                     (a.AssignedTimeSlot, b.AssignedTimeSlot) = (b.AssignedTimeSlot, a.AssignedTimeSlot);
                     (a.AssignedRoom, b.AssignedRoom) = (b.AssignedRoom, a.AssignedRoom);
 
                     var accept = false;
-                    var swapDelta = 0;
+                    var swapPenalty = currentPenalty;
                     if (AllHardConstraintsSatisfied(current, a, b))
                     {
-                        swapDelta = LocalPenalty(a, b) - swapBefore;
+                        swapPenalty = ComputeTotalPenalty(current);
+                        var swapDelta = swapPenalty - currentPenalty;
                         accept = swapDelta <= 0
                             || random.NextDouble() <= Math.Exp(-(double)swapDelta / Math.Max(temperature, 1e-6));
                     }
 
                     if (!accept)
                     {
-                        (a.AssignedTimeSlot, b.AssignedTimeSlot) = (b.AssignedTimeSlot, a.AssignedTimeSlot);
-                        (a.AssignedRoom, b.AssignedRoom) = (b.AssignedRoom, a.AssignedRoom);
+                        a.AssignedTimeSlot = originalSlotA;
+                        a.AssignedRoom = originalRoomA;
+                        b.AssignedTimeSlot = originalSlotB;
+                        b.AssignedRoom = originalRoomB;
                     }
                     else
                     {
-                        currentPenalty += swapDelta;
+                        currentPenalty = swapPenalty;
+                        current.TotalPenalty = currentPenalty;
                         if (currentPenalty < bestPenalty)
                         {
                             bestPenalty = currentPenalty;
@@ -461,40 +428,6 @@ namespace TimetablePlanner.Core.Generators
             }
 
             return total;
-        }
-
-        private static Schedule CloneSchedule(Schedule source)
-        {
-            var clone = new Schedule
-            {
-                TotalPenalty = source.TotalPenalty
-            };
-
-            foreach (var lesson in source.Lessons)
-            {
-                clone.Lessons.Add(CloneLesson(lesson));
-            }
-
-            foreach (var u in source.UnScheduledLessons)
-            {
-                clone.UnScheduledLessons.Add(CloneLesson(u));
-            }
-
-            return clone;
-        }
-
-        private static Lesson CloneLesson(Lesson source)
-        {
-            return new Lesson
-            {
-                Id = source.Id,
-                Subject = source.Subject,
-                Teacher = source.Teacher,
-                ClassGroup = source.ClassGroup,
-                AssignedRoom = source.AssignedRoom,
-                AssignedTimeSlot = source.AssignedTimeSlot,
-                Requirement = source.Requirement
-            };
         }
 
         private bool CanUse(Lesson lesson, TimeSlot? slot, Room? room)

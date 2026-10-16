@@ -123,7 +123,8 @@ namespace TimetablePlanner.Data.Seed
                             Name = string.IsNullOrWhiteSpace(gDto.Name) ? $"Group_{gDto.Id}" : gDto.Name!,
                             Size = gDto.Size,
                             Subjects = new List<Subject>(),
-                            Classes = new List<Class>()
+                            Classes = new List<Class>(),
+                            ParallelKey = gDto.ParallelKey
                         };
 
                         if (gDto.ClassIds != null)
@@ -248,7 +249,7 @@ namespace TimetablePlanner.Data.Seed
         private class TeacherTypeDto { public int Id { get; set; } public int RequiredWeeklyHours { get; set; } public int MaxWeeklyHours { get; set; } }
         private class TeacherDto { public int Id { get; set; } public string? Name { get; set; } public int? TeacherTypeId { get; set; } public List<int>? SubjectIds { get; set; } }
         private class ClassDto { public int Id { get; set; } public string? Name { get; set; } public int Size { get; set; } }
-        private class GroupDto { public int Id { get; set; } public string? Name { get; set; } public int Size { get; set; } public List<int>? ClassIds { get; set; } }
+        private class GroupDto { public int Id { get; set; } public string? Name { get; set; } public int Size { get; set; } public List<int>? ClassIds { get; set; } public string? ParallelKey { get; set; } }
         private class RoomDto { public int Id { get; set; } public string? Name { get; set; } public int Capacity { get; set; } }
         private class TimeSlotDto { public int Id { get; set; } public int Day { get; set; } public int Period { get; set; } }
         private class LessonReqDto { public int Id { get; set; } public int SubjectId { get; set; } public int TeacherId { get; set; } public int ClassGroupId { get; set; } public int WeeklyHours { get; set; } public List<int>? SuitableRoomIds { get; set; } public List<int>? PossibleTimeSlotIds { get; set; } }

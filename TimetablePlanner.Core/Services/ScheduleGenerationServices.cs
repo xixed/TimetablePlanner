@@ -44,6 +44,7 @@ namespace TimetablePlanner.Core.Services
 
             var softConstraints = new List<ISoftConstraint>
             {
+                new Constraints.Soft_Constraints.ParallelGroupSynchronization(),
                 new Constraints.Soft_Constraints.DoubleLessonPreference(),
                 new Constraints.Soft_Constraints.LessonSplitOnSameDay(),
                 new Constraints.Soft_Constraints.TeacherGap(),
@@ -98,7 +99,7 @@ namespace TimetablePlanner.Core.Services
             progress?.Report(new GenerationProgressReport { Overall = 0.5, Stage = "CP-SAT", StageProgress = 0.0 });
             try
             {
-                var cpSat = new CpSatGenerator(lessonsGenerator, timeLimitSeconds: 120);
+                var cpSat = new CpSatGenerator(lessonsGenerator, timeLimitSeconds: 300);
                 var hintSchedule = IsBetter(annealedSchedule, greedySchedule) ? annealedSchedule : greedySchedule;
                 sw.Restart();
                 cpSatSchedule = cpSat.Generate(requirements, hintSchedule, progress);

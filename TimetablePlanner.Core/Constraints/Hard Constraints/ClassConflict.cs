@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using TimetablePlanner.Core.Interfaces.Constraint;
+﻿using TimetablePlanner.Core.Interfaces.Constraint;
 using TimetablePlanner.Core.Models;
 
 namespace TimetablePlanner.Core.Constraints.Hard_Constraints
@@ -10,7 +9,7 @@ namespace TimetablePlanner.Core.Constraints.Hard_Constraints
 
         public bool IsSatisfied(Schedule schedule, Lesson lesson)
         {
-            if (lesson.AssignedTimeSlot == null)
+            if (lesson.AssignedTimeSlot == null || lesson.ClassGroup == null)
             {
                 return true;
             }
@@ -18,13 +17,14 @@ namespace TimetablePlanner.Core.Constraints.Hard_Constraints
             foreach (var existingLesson in schedule.Lessons)
             {
                 if (existingLesson.AssignedTimeSlot == null
+                    || existingLesson.ClassGroup == null
                     || existingLesson.AssignedTimeSlot.Day != lesson.AssignedTimeSlot.Day
                     || existingLesson.AssignedTimeSlot.Period != lesson.AssignedTimeSlot.Period)
                 {
                     continue;
                 }
 
-                if (Overlaps(existingLesson.ClassGroup, lesson.ClassGroup))
+                if (Conflicts(existingLesson.ClassGroup, lesson.ClassGroup))
                 {
                     return false;
                 }
@@ -33,20 +33,32 @@ namespace TimetablePlanner.Core.Constraints.Hard_Constraints
             return true;
         }
 
-        private static bool Overlaps(ClassGroup a, ClassGroup b)
+        private static bool Conflicts(ClassGroup existing, ClassGroup candidate)
         {
-            if (a.Id == b.Id)
+            if (existing is Class existingClass && candidate is Class candidateClass)
             {
-                return true;
+                return existingClass.Id == candidateClass.Id;
             }
 
-            return (a, b) switch
+            if (existing is Group existingGroup && candidate is Class candidateWholeClass)
             {
-                (Group ga, Class cb) => ga.Classes.Any(c => c.Id == cb.Id),
-                (Class ca, Group gb) => gb.Classes.Any(c => c.Id == ca.Id),
-                (Group ga, Group gb) => ga.Classes.Select(c => c.Id).Intersect(gb.Classes.Select(c => c.Id)).Any(),
-                _ => false
-            };
+                return existingGroup.ContainsClass(candidateWholeClass);
+            }
+
+            if (existing is Class existingWholeClass && candidate is Group candidateGroup)
+            {
+                return candidateGroup.ContainsClass(existingWholeClass);
+            }
+
+            if (existing is Group existingParallelGroup && candidate is Group candidateParallelGroup)
+            {
+                var sameParallelKey = !string.IsNullOrWhiteSpace(existingParallelGroup.ParallelKey)
+                    && string.Equals(existingParallelGroup.ParallelKey, candidateParallelGroup.ParallelKey, System.StringComparison.OrdinalIgnoreCase);
+
+                return !sameParallelKey;
+            }
+
+            return false;
         }
     }
 }

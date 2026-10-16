@@ -23,5 +23,17 @@ namespace TimetablePlanner.Core.Models
         }
         // Parameterless constructor for ClassGroup
         public ClassGroup() { }
+
+        public virtual IEnumerable<Class> GetMemberClasses()
+        {
+            return this is Class schoolClass
+                ? new[] { schoolClass }
+                : Enumerable.Empty<Class>();
+        }
+
+        public bool ContainsClass(Class schoolClass)
+        {
+            return GetMemberClasses().Any(c => c.Id == schoolClass.Id);
+        }
     }
 }
